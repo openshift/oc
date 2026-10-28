@@ -15,6 +15,7 @@ import (
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
+	"sigs.k8s.io/yaml"
 )
 
 var (
@@ -79,19 +80,20 @@ func (o *statusOptions) run(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, apiRequestTimeout)
 	defer cancel()
 
-	if err := o.printTopologyStatus(ctx); err != nil {
-		return err
-	}
-
-	return o.printTopologyTransitionStatus(ctx)
-}
-
-// printTopologyStatus will output the Control Plane and Infrastructure topologies from spec and status
-func (o *statusOptions) printTopologyStatus(ctx context.Context) error {
 	infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, infrastructureResourceName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get Infrastructure resource: %w", err)
 	}
+
+	if err := o.printTopologyStatus(infra); err != nil {
+		return err
+	}
+
+	return o.printTopologyTransitionStatus(infra)
+}
+
+// printTopologyStatus will output the Control Plane and Infrastructure topologies from spec and status
+func (o *statusOptions) printTopologyStatus(infra *configv1.Infrastructure) error {
 
 	notSet := "(not set)"
 	cpSpecTopology := string(infra.Spec.ControlPlaneTopology)
@@ -127,48 +129,109 @@ Infrastructure Topology:
 	return nil
 }
 
-func (o *statusOptions) printTopologyTransitionStatus(ctx context.Context) error {
-	infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, "cluster", metav1.GetOptions{})
-	if err != nil {
-		return err
-	}
+// printTopologyTransitionStatus outputs the topology transition status
+// conditions and the available transitions, marshalled from
+// transitionStatusOutput.
+func (o *statusOptions) printTopologyTransitionStatus(infra *configv1.Infrastructure) error {
 
 	// Pull out the relevant conditions from infrastructure API.
 	evaluatedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
 	completedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionCompletedConditionType)
 
-	var output strings.Builder
-	fmt.Fprintln(&output, "\nTransition Status")
-	fmt.Fprintln(&output, formatTopologyConditionStatus("Evaluated", evaluatedCond))
-	fmt.Fprintln(&output, formatTopologyConditionStatus("Completed", completedCond))
-
-	// Display available transitions and their evaluations
-	if len(infra.Status.TopologyTransitionStatus.Transitions) > 0 {
-		fmt.Fprintln(&output, "\nAvailable Transitions:")
-		for i, transition := range infra.Status.TopologyTransitionStatus.Transitions {
-			fmt.Fprintf(&output, "\n  Transition %d:\n", i+1)
-			fmt.Fprintf(&output, "    Source:\n")
-			fmt.Fprintf(&output, "      Control Plane Topology:    %s\n", transition.Source.ControlPlaneTopology)
-			fmt.Fprintf(&output, "      Infrastructure Topology:  %s\n", transition.Source.InfrastructureTopology)
-			fmt.Fprintf(&output, "    Target:\n")
-			fmt.Fprintf(&output, "      Control Plane Topology:    %s\n", transition.Target.ControlPlaneTopology)
-			fmt.Fprintf(&output, "      Infrastructure Topology:  %s\n", transition.Target.InfrastructureTopology)
-			fmt.Fprintln(&output, "    Evaluations:")
-			for _, eval := range transition.Evaluations {
-				fmt.Fprintln(&output, "      ", formatTopologyConditionStatus(eval.Type, &eval))
-			}
-		}
+	output := transitionStatusOutput{
+		Evaluated: newTransitionConditionOutput(evaluatedCond),
+		Completed: newTransitionConditionOutput(completedCond),
+	}
+	for _, transition := range infra.Status.TopologyTransitionStatus.Transitions {
+		output.AvailableTransitions = append(output.AvailableTransitions, newAvailableTransitionOutput(transition))
 	}
 
-	_, err = io.WriteString(o.Out, output.String())
+	marshalled, err := yaml.Marshal(output)
+	if err != nil {
+		return fmt.Errorf("failed to marshal transition status output: %w", err)
+	}
+
+	_, err = fmt.Fprintf(o.Out, "\nTransition Status:\n%s", marshalled)
 	return err
 }
 
-// formatTopologyConditionStatus formats the provided topology transition condition status under a 'label' heading
-func formatTopologyConditionStatus(label string, cond *metav1.Condition) string {
-	if cond == nil {
-		return fmt.Sprintf("  %s: Condition not available\n", label)
-	}
+// transitionStatusOutput encapsulates the topology transition status output so
+// it can be marshalled to JSON or YAML.
+type transitionStatusOutput struct {
+	// Evaluated is the TopologyTransitionsEvaluated condition of the transition status.
+	Evaluated transitionConditionOutput `json:"Evaluated"`
 
-	return fmt.Sprintf("  %s\n    Status: %s\n    Reason: %s\n    Message: %s\n", label, cond.Status, cond.Reason, cond.Message)
+	// Completed is the TopologyTransitionCompleted condition of the transition status.
+	Completed transitionConditionOutput `json:"Completed"`
+
+	// AvailableTransitions lists the transitions the cluster may perform
+	// together with their evaluations. Omitted when no transitions are available.
+	AvailableTransitions []availableTransitionOutput `json:"Available Transitions,omitempty"`
+}
+
+// transitionConditionOutput describes a topology transition condition. Type is
+// only set for transition evaluations, where it labels the evaluation.
+type transitionConditionOutput struct {
+	Type    string `json:"Type,omitempty"`
+	Status  string `json:"Status,omitempty"`
+	Reason  string `json:"Reason,omitempty"`
+	Message string `json:"Message"`
+}
+
+// availableTransitionOutput describes a transition from a Source to a Target
+// topology together with the evaluations performed for it.
+type availableTransitionOutput struct {
+	Source      transitionTopologyOutput    `json:"Source"`
+	Target      transitionTopologyOutput    `json:"Target"`
+	Evaluations []transitionConditionOutput `json:"Evaluations"`
+}
+
+// transitionTopologyOutput describes a control plane and infrastructure topology pair.
+type transitionTopologyOutput struct {
+	ControlPlaneTopology   string `json:"Control Plane Topology"`
+	InfrastructureTopology string `json:"Infrastructure Topology"`
+}
+
+// conditionNotAvailable is reported for topology transition conditions that
+// are not present in the Infrastructure status.
+const conditionNotAvailable = "Condition not available"
+
+// newTransitionConditionOutput converts a topology transition condition into
+// its output representation. A nil condition maps to a "Condition not
+// available" message: the controller always reports both conditions once
+// TopologyTransitionStatus is set, but that status is optional and may be
+// absent on clusters where the topology controller does not report it.
+func newTransitionConditionOutput(cond *metav1.Condition) transitionConditionOutput {
+	if cond == nil {
+		return transitionConditionOutput{Message: conditionNotAvailable}
+	}
+	return transitionConditionOutput{
+		Status:  string(cond.Status),
+		Reason:  cond.Reason,
+		Message: cond.Message,
+	}
+}
+
+// newAvailableTransitionOutput converts a topology transition and its
+// evaluations into their output representation.
+func newAvailableTransitionOutput(transition configv1.TopologyTransition) availableTransitionOutput {
+	output := availableTransitionOutput{
+		Source:      newTransitionTopologyOutput(transition.Source),
+		Target:      newTransitionTopologyOutput(transition.Target),
+		Evaluations: make([]transitionConditionOutput, 0, len(transition.Evaluations)),
+	}
+	for _, eval := range transition.Evaluations {
+		evalOutput := newTransitionConditionOutput(&eval)
+		evalOutput.Type = eval.Type
+		output.Evaluations = append(output.Evaluations, evalOutput)
+	}
+	return output
+}
+
+// newTransitionTopologyOutput converts a topology state into its output representation.
+func newTransitionTopologyOutput(state configv1.TopologyState) transitionTopologyOutput {
+	return transitionTopologyOutput{
+		ControlPlaneTopology:   string(state.ControlPlaneTopology),
+		InfrastructureTopology: string(state.InfrastructureTopology),
+	}
 }

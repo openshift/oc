@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	configv1 "github.com/openshift/api/config/v1"
 	fakeconfigclient "github.com/openshift/client-go/config/clientset/versioned/fake"
 	"github.com/spf13/cobra"
@@ -52,8 +54,11 @@ INITIATE MODE
   - Already at target topology              - Early exit with success message, no validation
 
 STATUS COMMAND
-  - Status command output                   - 5 scenarios: transition in progress, stable,
-                                              preflight failed, unsupported, empty infra topology
+  - Status command output                   - 6 scenarios: transition in progress, stable,
+                                              preflight failed, unsupported, empty infra topology,
+                                              missing condition
+  - Transitions array display               - nil, empty, single, multiple, no evaluations
+  - Output struct construction              - Condition and transition output mapping
 
 --------------------------------------------------------------------------------
 */
@@ -555,9 +560,15 @@ func TestStatusCommand(t *testing.T) {
 				"Spec (desired):   HighlyAvailable",
 				"Status (current): SingleReplica",
 				"Infrastructure Topology:",
-				"Transition Status",
-				"  Evaluated\n    Status: True\n    Reason: TransitionAvailable\n    Message: Topology transition evaluations completed successfully",
-				"  Completed\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Message: Transitioning control plane topology from SingleReplica to HighlyAvailable",
+				"Transition Status:",
+				`Completed:
+  Message: Transitioning control plane topology from SingleReplica to HighlyAvailable
+  Reason: TopologyTransitionInProgress
+  Status: "False"`,
+				`Evaluated:
+  Message: Topology transition evaluations completed successfully
+  Reason: TransitionAvailable
+  Status: "True"`,
 			},
 		},
 		{
@@ -577,8 +588,15 @@ func TestStatusCommand(t *testing.T) {
 				"Status (current): HighlyAvailable",
 				"Infrastructure Topology:",
 				"Status (current): HighlyAvailable",
-				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
-				"  Completed\n    Status: True\n    Reason: AsExpected\n    Message: No topology transition in progress",
+				"Transition Status:",
+				`Completed:
+  Message: No topology transition in progress
+  Reason: AsExpected
+  Status: "True"`,
+				`Evaluated:
+  Message: Topology transition evaluations completed successfully
+  Reason: EvaluationComplete
+  Status: "True"`,
 			},
 		},
 		{
@@ -593,8 +611,14 @@ func TestStatusCommand(t *testing.T) {
 			completedReason:  topologyTransitionPreflightCheckFailedReason,
 			completedMessage: "Cluster operators are not stable",
 			expectedOutputContains: []string{
-				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
-				"  Completed\n    Status: False\n    Reason: PreflightCheckFailed\n    Message: Cluster operators are not stable",
+				`Completed:
+  Message: Cluster operators are not stable
+  Reason: PreflightCheckFailed
+  Status: "False"`,
+				`Evaluated:
+  Message: Topology transition evaluations completed successfully
+  Reason: EvaluationComplete
+  Status: "True"`,
 			},
 		},
 		{
@@ -609,8 +633,14 @@ func TestStatusCommand(t *testing.T) {
 			completedReason:  topologyTransitionUnsupportedTransitionReason,
 			completedMessage: "Transition from HighlyAvailable to SingleReplica is not supported",
 			expectedOutputContains: []string{
-				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
-				"  Completed\n    Status: False\n    Reason: UnsupportedTransition\n    Message: Transition from HighlyAvailable to SingleReplica is not supported",
+				`Completed:
+  Message: Transition from HighlyAvailable to SingleReplica is not supported
+  Reason: UnsupportedTransition
+  Status: "False"`,
+				`Evaluated:
+  Message: Topology transition evaluations completed successfully
+  Reason: EvaluationComplete
+  Status: "True"`,
 			},
 		},
 		{
@@ -628,7 +658,28 @@ func TestStatusCommand(t *testing.T) {
 				"Control Plane Topology:",
 				"Infrastructure Topology:",
 				"Status (current): (not set)",
-				"  Evaluated\n    Status: True\n    Reason: EvaluationComplete\n    Message: Topology transition evaluations completed successfully",
+				`Evaluated:
+  Message: Topology transition evaluations completed successfully
+  Reason: EvaluationComplete
+  Status: "True"`,
+			},
+		},
+		{
+			name:             "completed condition not available",
+			infraSpec:        configv1.HighlyAvailableTopologyMode,
+			infraStatus:      configv1.HighlyAvailableTopologyMode,
+			infraTopology:    configv1.HighlyAvailableTopologyMode,
+			evaluatedStatus:  metav1.ConditionTrue,
+			evaluatedReason:  "EvaluationComplete",
+			evaluatedMessage: "Topology transition evaluations completed successfully",
+			expectedOutputContains: []string{
+				"Transition Status:",
+				`Completed:
+  Message: Condition not available`,
+				`Evaluated:
+  Message: Topology transition evaluations completed successfully
+  Reason: EvaluationComplete
+  Status: "True"`,
 			},
 		},
 	}
@@ -759,16 +810,39 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 			},
 			expectedOutputContains: []string{
 				"Available Transitions:",
-				"Transition 1:",
-				"Source:",
-				"Control Plane Topology:    SingleReplica",
-				"Infrastructure Topology:  SingleReplica",
-				"Target:",
-				"Control Plane Topology:    HighlyAvailable",
-				"Infrastructure Topology:  HighlyAvailable",
-				"Evaluations:",
-				"TopologyTransitionAvailable\n    Status: True\n    Reason: TransitionSupported\n    Message: Transition from SingleReplica to HighlyAvailable is supported",
-				"ClusterOperatorsStable\n    Status: True\n    Reason: AllStable\n    Message: All cluster operators are stable",
+				`Source:
+    Control Plane Topology: SingleReplica
+    Infrastructure Topology: SingleReplica`,
+				`Target:
+    Control Plane Topology: HighlyAvailable
+    Infrastructure Topology: HighlyAvailable`,
+				`  - Message: Transition from SingleReplica to HighlyAvailable is supported
+    Reason: TransitionSupported
+    Status: "True"
+    Type: TopologyTransitionAvailable`,
+				`  - Message: All cluster operators are stable
+    Reason: AllStable
+    Status: "True"
+    Type: ClusterOperatorsStable`,
+			},
+		},
+		{
+			name: "transition without evaluations",
+			transitions: []configv1.TopologyTransition{
+				{
+					Source: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+						InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+					},
+					Target: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+						InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+					},
+				},
+			},
+			expectedOutputContains: []string{
+				"Available Transitions:",
+				"Evaluations: []",
 			},
 		},
 		{
@@ -813,11 +887,12 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 			},
 			expectedOutputContains: []string{
 				"Available Transitions:",
-				"Transition 1:",
-				"HighlyAvailable",
-				"Transition 2:",
-				"HighlyAvailableArbiter",
-				"InsufficientNodes",
+				`Target:
+    Control Plane Topology: HighlyAvailable
+    Infrastructure Topology: HighlyAvailable`,
+				"Control Plane Topology: HighlyAvailableArbiter",
+				"Reason: InsufficientNodes",
+				"Message: Transition is supported",
 			},
 		},
 	}
@@ -883,40 +958,96 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 					t.Errorf("expected output to NOT contain %q, got:\n%s", missing, output)
 				}
 			}
+
+			// Verify multiple transitions are listed in the reported order
+			if strings.Count(output, "- Evaluations:") == 2 {
+				if first, second := strings.Index(output, "Transition is supported"), strings.Index(output, "HighlyAvailableArbiter"); first == -1 || second == -1 || first > second {
+					t.Errorf("expected transitions to be listed in order, got:\n%s", output)
+				}
+			}
 		})
 	}
 }
 
-func TestFormatTopologyConditionStatus(t *testing.T) {
+// TestNewTransitionConditionOutput verifies the conversion of topology
+// transition conditions into their output representation
+func TestNewTransitionConditionOutput(t *testing.T) {
 	tests := []struct {
 		name      string
-		label     string
 		condition *metav1.Condition
-		want      string
+		want      transitionConditionOutput
 	}{
 		{
-			name:  "missing condition",
-			label: "Evaluated",
-			want:  "  Evaluated: Condition not available\n",
+			name: "missing condition",
+			want: transitionConditionOutput{Message: conditionNotAvailable},
 		},
 		{
-			name:  "available condition",
-			label: "Completed",
+			name: "available condition",
 			condition: &metav1.Condition{
 				Status:  metav1.ConditionFalse,
 				Reason:  "TopologyTransitionInProgress",
 				Message: "Cluster upgrade is not allowed during topology transition",
 			},
-			want: "  Completed\n    Status: False\n    Reason: TopologyTransitionInProgress\n    Message: Cluster upgrade is not allowed during topology transition\n",
+			want: transitionConditionOutput{
+				Status:  "False",
+				Reason:  "TopologyTransitionInProgress",
+				Message: "Cluster upgrade is not allowed during topology transition",
+			},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := formatTopologyConditionStatus(tc.label, tc.condition); got != tc.want {
-				t.Errorf("formatTopologyConditionStatus() = %q, want %q", got, tc.want)
+			if diff := cmp.Diff(tc.want, newTransitionConditionOutput(tc.condition)); diff != "" {
+				t.Errorf("newTransitionConditionOutput() mismatch (-want +got):\n%s", diff)
 			}
 		})
+	}
+}
+
+// TestNewAvailableTransitionOutput verifies the conversion of a topology
+// transition and its evaluations into their output representation
+func TestNewAvailableTransitionOutput(t *testing.T) {
+	transition := configv1.TopologyTransition{
+		Source: configv1.TopologyState{
+			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+		Target: configv1.TopologyState{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+		},
+		Evaluations: []metav1.Condition{
+			{
+				Type:    configv1.TopologyTransitionAvailableConditionType,
+				Status:  metav1.ConditionTrue,
+				Reason:  "TransitionSupported",
+				Message: "Transition from SingleReplica to HighlyAvailable is supported",
+			},
+		},
+	}
+
+	want := availableTransitionOutput{
+		Source: transitionTopologyOutput{
+			ControlPlaneTopology:   "SingleReplica",
+			InfrastructureTopology: "SingleReplica",
+		},
+		Target: transitionTopologyOutput{
+			ControlPlaneTopology:   "HighlyAvailable",
+			InfrastructureTopology: "HighlyAvailable",
+		},
+		Evaluations: []transitionConditionOutput{
+			{
+				Type:    configv1.TopologyTransitionAvailableConditionType,
+				Status:  "True",
+				Reason:  "TransitionSupported",
+				Message: "Transition from SingleReplica to HighlyAvailable is supported",
+			},
+		},
+	}
+
+	if diff := cmp.Diff(want, newAvailableTransitionOutput(transition)); diff != "" {
+		t.Errorf("newAvailableTransitionOutput() mismatch (-want +got):\n%s", diff)
 	}
 }
 
