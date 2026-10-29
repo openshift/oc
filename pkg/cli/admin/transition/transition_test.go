@@ -46,8 +46,7 @@ VALIDATION
   - Flag dependencies                       - --confirm requires a target topology
 
 DISCOVERY MODE
-  - Discovery mode from SingleReplica       - Shows available transition
-  - Discovery mode from HighlyAvailable     - Shows available transitions
+  - Server-reported discovery               - See discovery_test.go
 
 INITIATE MODE
   - Patches Infrastructure with --confirm   - Verifies Update action with correct topology
@@ -101,7 +100,7 @@ func TestNewCmdTransition(t *testing.T) {
 	}
 
 	// Verify flags exist on topology command
-	requiredFlags := []string{"control-plane", "infrastructure", "confirm"}
+	requiredFlags := []string{"control-plane", "infrastructure", "confirm", "output"}
 	for _, flagName := range requiredFlags {
 		flag := topologyCmd.Flags().Lookup(flagName)
 		if flag == nil {
@@ -253,89 +252,6 @@ func TestValidate_FlagDependencies(t *testing.T) {
 				}
 			}
 		})
-	}
-}
-
-// TestRunDiscoveryMode_SingleReplica tests discovery mode output for SNO
-func TestRunDiscoveryMode_SingleReplica(t *testing.T) {
-	streams, _, out, _ := genericclioptions.NewTestIOStreams()
-	o := newTransitionOptions(streams)
-	o.current = TopologyState{
-		ControlPlane:   configv1.SingleReplicaTopologyMode,
-		Infrastructure: configv1.SingleReplicaTopologyMode,
-	}
-	o.validator.Current = o.current
-
-	err := o.runDiscoveryMode(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	output := out.String()
-
-	// Should show current topology for both control plane and infrastructure
-	if !strings.Contains(output, "Current Topology Configuration:") {
-		t.Errorf("expected current topology header in output, got:\n%s", output)
-	}
-	if !strings.Contains(output, "Control Plane:") {
-		t.Errorf("expected control plane topology in output, got:\n%s", output)
-	}
-	if !strings.Contains(output, "Infrastructure:") {
-		t.Errorf("expected infrastructure topology in output, got:\n%s", output)
-	}
-
-	// Should show available transition for control plane
-	if !strings.Contains(output, `Control Plane:  SingleReplica\t->\tHighlyAvailable`) {
-		t.Errorf("expected available control plane transition in output, got:\n%s", output)
-	}
-
-	if !strings.Contains(output, `Infrastructure: SingleReplica\t->\tHighlyAvailable`) {
-		t.Errorf("expected available infrastructure transition in output, got:\n%s", output)
-	}
-
-	if !strings.Contains(output, "--control-plane={target} --confirm") {
-		t.Errorf("expected initiate command with --control-plane flag in output, got:\n%s", output)
-	}
-}
-
-// TestRunDiscoveryMode_HighlyAvailable tests discovery mode output for HA
-func TestRunDiscoveryMode_HighlyAvailable(t *testing.T) {
-	streams, _, out, _ := genericclioptions.NewTestIOStreams()
-	o := newTransitionOptions(streams)
-	o.current = TopologyState{
-		ControlPlane:   configv1.HighlyAvailableTopologyMode,
-		Infrastructure: configv1.HighlyAvailableTopologyMode,
-	}
-	o.validator.Current = o.current
-
-	err := o.runDiscoveryMode(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	output := out.String()
-
-	// Should show current topology for both control plane and infrastructure
-	if !strings.Contains(output, "Current Topology Configuration:") {
-		t.Errorf("expected current topology header in output, got:\n%s", output)
-	}
-
-	if !strings.Contains(output, `Control Plane:  HighlyAvailable\t->\tHighlyAvailable`) {
-		t.Errorf("expected current topology as a valid no-op transition, got:\n%s", output)
-	}
-}
-
-func TestRunDiscoveryModeReturnsWriteError(t *testing.T) {
-	wantErr := errors.New("write failed")
-	o := newTransitionOptions(genericclioptions.IOStreams{Out: failingWriter{err: wantErr}})
-	o.current = TopologyState{
-		ControlPlane:   configv1.SingleReplicaTopologyMode,
-		Infrastructure: configv1.SingleReplicaTopologyMode,
-	}
-	o.validator.Current = o.current
-
-	if err := o.runDiscoveryMode(context.Background()); !errors.Is(err, wantErr) {
-		t.Fatalf("runDiscoveryMode() error = %v, want %v", err, wantErr)
 	}
 }
 
