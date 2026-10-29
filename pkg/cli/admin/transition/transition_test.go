@@ -561,14 +561,18 @@ func TestStatusCommand(t *testing.T) {
 				"Status (current): SingleReplica",
 				"Infrastructure Topology:",
 				"Transition Status:",
+				`Infrastructure Topology:
+  Status (current): SingleReplica
+
+Transition Status:`,
 				`Completed:
-  Message: Transitioning control plane topology from SingleReplica to HighlyAvailable
-  Reason: TopologyTransitionInProgress
-  Status: "False"`,
+    Message: Transitioning control plane topology from SingleReplica to HighlyAvailable
+    Reason: TopologyTransitionInProgress
+    Status: "False"`,
 				`Evaluated:
-  Message: Topology transition evaluations completed successfully
-  Reason: TransitionAvailable
-  Status: "True"`,
+    Message: Topology transition evaluations completed successfully
+    Reason: TransitionAvailable
+    Status: "True"`,
 			},
 		},
 		{
@@ -590,13 +594,13 @@ func TestStatusCommand(t *testing.T) {
 				"Status (current): HighlyAvailable",
 				"Transition Status:",
 				`Completed:
-  Message: No topology transition in progress
-  Reason: AsExpected
-  Status: "True"`,
+    Message: No topology transition in progress
+    Reason: AsExpected
+    Status: "True"`,
 				`Evaluated:
-  Message: Topology transition evaluations completed successfully
-  Reason: EvaluationComplete
-  Status: "True"`,
+    Message: Topology transition evaluations completed successfully
+    Reason: EvaluationComplete
+    Status: "True"`,
 			},
 		},
 		{
@@ -612,13 +616,13 @@ func TestStatusCommand(t *testing.T) {
 			completedMessage: "Cluster operators are not stable",
 			expectedOutputContains: []string{
 				`Completed:
-  Message: Cluster operators are not stable
-  Reason: PreflightCheckFailed
-  Status: "False"`,
+    Message: Cluster operators are not stable
+    Reason: PreflightCheckFailed
+    Status: "False"`,
 				`Evaluated:
-  Message: Topology transition evaluations completed successfully
-  Reason: EvaluationComplete
-  Status: "True"`,
+    Message: Topology transition evaluations completed successfully
+    Reason: EvaluationComplete
+    Status: "True"`,
 			},
 		},
 		{
@@ -634,13 +638,13 @@ func TestStatusCommand(t *testing.T) {
 			completedMessage: "Transition from HighlyAvailable to SingleReplica is not supported",
 			expectedOutputContains: []string{
 				`Completed:
-  Message: Transition from HighlyAvailable to SingleReplica is not supported
-  Reason: UnsupportedTransition
-  Status: "False"`,
+    Message: Transition from HighlyAvailable to SingleReplica is not supported
+    Reason: UnsupportedTransition
+    Status: "False"`,
 				`Evaluated:
-  Message: Topology transition evaluations completed successfully
-  Reason: EvaluationComplete
-  Status: "True"`,
+    Message: Topology transition evaluations completed successfully
+    Reason: EvaluationComplete
+    Status: "True"`,
 			},
 		},
 		{
@@ -659,9 +663,9 @@ func TestStatusCommand(t *testing.T) {
 				"Infrastructure Topology:",
 				"Status (current): (not set)",
 				`Evaluated:
-  Message: Topology transition evaluations completed successfully
-  Reason: EvaluationComplete
-  Status: "True"`,
+    Message: Topology transition evaluations completed successfully
+    Reason: EvaluationComplete
+    Status: "True"`,
 			},
 		},
 		{
@@ -675,11 +679,11 @@ func TestStatusCommand(t *testing.T) {
 			expectedOutputContains: []string{
 				"Transition Status:",
 				`Completed:
-  Message: Condition not available`,
+    Message: Condition not available`,
 				`Evaluated:
-  Message: Topology transition evaluations completed successfully
-  Reason: EvaluationComplete
-  Status: "True"`,
+    Message: Topology transition evaluations completed successfully
+    Reason: EvaluationComplete
+    Status: "True"`,
 			},
 		},
 	}
@@ -811,19 +815,19 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 			expectedOutputContains: []string{
 				"Available Transitions:",
 				`Source:
-    Control Plane Topology: SingleReplica
-    Infrastructure Topology: SingleReplica`,
+      Control Plane Topology: SingleReplica
+      Infrastructure Topology: SingleReplica`,
 				`Target:
-    Control Plane Topology: HighlyAvailable
-    Infrastructure Topology: HighlyAvailable`,
-				`  - Message: Transition from SingleReplica to HighlyAvailable is supported
-    Reason: TransitionSupported
-    Status: "True"
-    Type: TopologyTransitionAvailable`,
-				`  - Message: All cluster operators are stable
-    Reason: AllStable
-    Status: "True"
-    Type: ClusterOperatorsStable`,
+      Control Plane Topology: HighlyAvailable
+      Infrastructure Topology: HighlyAvailable`,
+				`    - Message: Transition from SingleReplica to HighlyAvailable is supported
+      Reason: TransitionSupported
+      Status: "True"
+      Type: TopologyTransitionAvailable`,
+				`    - Message: All cluster operators are stable
+      Reason: AllStable
+      Status: "True"
+      Type: ClusterOperatorsStable`,
 			},
 		},
 		{
@@ -888,8 +892,8 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 			expectedOutputContains: []string{
 				"Available Transitions:",
 				`Target:
-    Control Plane Topology: HighlyAvailable
-    Infrastructure Topology: HighlyAvailable`,
+      Control Plane Topology: HighlyAvailable
+      Infrastructure Topology: HighlyAvailable`,
 				"Control Plane Topology: HighlyAvailableArbiter",
 				"Reason: InsufficientNodes",
 				"Message: Transition is supported",

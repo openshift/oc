@@ -131,7 +131,7 @@ Infrastructure Topology:
 
 // printTopologyTransitionStatus outputs the topology transition status
 // conditions and the available transitions, marshalled from
-// transitionStatusOutput.
+// transitionStatusHeader.
 func (o *statusOptions) printTopologyTransitionStatus(infra *configv1.Infrastructure) error {
 
 	// Pull out the relevant conditions from infrastructure API.
@@ -150,7 +150,7 @@ func (o *statusOptions) printTopologyTransitionStatus(infra *configv1.Infrastruc
 	if err != nil {
 		return fmt.Errorf("failed to marshal transition status output: %w", err)
 	}
-	_, err = fmt.Fprintln(o.Out, string(marshalled))
+	_, err = fmt.Fprintf(o.Out, "\n%s", marshalled)
 	return err
 }
 
