@@ -253,12 +253,19 @@ func TestDiscoveryReturnsWriteError(t *testing.T) {
 // error without printing a discovery report.
 func TestDiscoveryReturnsAPIError(t *testing.T) {
 	resource := schema.GroupResource{Group: configv1.GroupName, Resource: "infrastructures"}
-	for _, wantErr := range []error{
-		apierrors.NewForbidden(resource, "cluster", errors.New("access denied")),
-		apierrors.NewNotFound(resource, "cluster"),
-		errors.New("connection failed"),
-	} {
-		t.Run(wantErr.Error(), func(t *testing.T) {
+	tests := []struct {
+		name    string
+		wantErr error
+	}{
+		{name: "forbidden", wantErr: apierrors.NewForbidden(resource, "cluster", errors.New("access denied"))},
+		{name: "not found", wantErr: apierrors.NewNotFound(resource, "cluster")},
+		{name: "connection error", wantErr: errors.New("connection failed")},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wantErr := tt.wantErr
+
 			client := fakeconfigclient.NewClientset()
 			client.PrependReactor("get", "infrastructures", func(ktesting.Action) (bool, runtime.Object, error) {
 				return true, nil, wantErr
