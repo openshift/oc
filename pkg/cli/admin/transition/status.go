@@ -138,7 +138,7 @@ func (o *statusOptions) printTopologyTransitionStatus(infra *configv1.Infrastruc
 	evaluatedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
 	completedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionCompletedConditionType)
 
-	output := transitionStatusOutput{
+	output := transitionStatusBody{
 		Evaluated: newTransitionConditionOutput(evaluatedCond),
 		Completed: newTransitionConditionOutput(completedCond),
 	}
@@ -146,18 +146,23 @@ func (o *statusOptions) printTopologyTransitionStatus(infra *configv1.Infrastruc
 		output.AvailableTransitions = append(output.AvailableTransitions, newAvailableTransitionOutput(transition))
 	}
 
-	marshalled, err := yaml.Marshal(output)
+	marshalled, err := yaml.Marshal(transitionStatusHeader{output})
 	if err != nil {
 		return fmt.Errorf("failed to marshal transition status output: %w", err)
 	}
-
-	_, err = fmt.Fprintf(o.Out, "\nTransition Status:\n%s", marshalled)
+	_, err = fmt.Fprintln(o.Out, string(marshalled))
 	return err
 }
 
-// transitionStatusOutput encapsulates the topology transition status output so
+// transitionStatusHeader provides the root level node of the transition status output
+// as a nicety for pretty output
+type transitionStatusHeader struct {
+	TransitionHeader transitionStatusBody `json:"Transistion Status"`
+}
+
+// transitionStatusBody encapsulates the topology transition status output so
 // it can be marshalled to JSON or YAML.
-type transitionStatusOutput struct {
+type transitionStatusBody struct {
 	// Evaluated is the TopologyTransitionsEvaluated condition of the transition status.
 	Evaluated transitionConditionOutput `json:"Evaluated"`
 
