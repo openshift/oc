@@ -157,7 +157,7 @@ func (o *statusOptions) printTopologyTransitionStatus(infra *configv1.Infrastruc
 // transitionStatusHeader provides the root level node of the transition status output
 // as a nicety for pretty output
 type transitionStatusHeader struct {
-	TransitionHeader transitionStatusBody `json:"Transistion Status"`
+	TransitionHeader transitionStatusBody `json:"Transition Status"`
 }
 
 // transitionStatusBody encapsulates the topology transition status output so
