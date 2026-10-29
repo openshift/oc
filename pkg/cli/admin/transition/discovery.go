@@ -46,6 +46,8 @@ func (o *transitionOptions) runDiscoveryMode(infra *configv1.Infrastructure) err
 	return err
 }
 
+// printTransitionOptions lists reported transitions, their availability, and failed checks.
+// It includes preview instructions only when at least one transition is available.
 func printTransitionOptions(output *strings.Builder, transitions []configv1.TopologyTransition) {
 	fmt.Fprintln(output, "Supported Transitions:")
 	availableCount := 0

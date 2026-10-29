@@ -23,6 +23,7 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// discoveryInfrastructure builds a current report with one available transition for discovery tests.
 func discoveryInfrastructure() *configv1.Infrastructure {
 	return &configv1.Infrastructure{
 		ObjectMeta: metav1.ObjectMeta{Name: "cluster", Generation: 2},
@@ -53,6 +54,8 @@ func discoveryInfrastructure() *configv1.Infrastructure {
 	}
 }
 
+// TestDiscoveryStructuredOutput verifies JSON and YAML preserve the raw report,
+// including missing, pending, and stale results, using only one Infrastructure GET.
 func TestDiscoveryStructuredOutput(t *testing.T) {
 	for _, format := range []string{"json", "yaml"} {
 		for _, state := range []string{"available", "blocked", "pending", "empty", "missing", "old generation"} {
@@ -115,6 +118,8 @@ func TestDiscoveryStructuredOutput(t *testing.T) {
 	}
 }
 
+// TestDiscoveryReadsServerResults checks that human output uses the controller's
+// report and does not advertise retained transitions when evaluations are stale.
 func TestDiscoveryReadsServerResults(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -228,6 +233,7 @@ func TestDiscoveryReadsServerResults(t *testing.T) {
 	}
 }
 
+// TestDiscoveryReturnsWriteError verifies all discovery formats return output write errors.
 func TestDiscoveryReturnsWriteError(t *testing.T) {
 	for _, format := range []string{"", "json", "yaml"} {
 		t.Run(format, func(t *testing.T) {
@@ -243,6 +249,8 @@ func TestDiscoveryReturnsWriteError(t *testing.T) {
 	}
 }
 
+// TestDiscoveryReturnsAPIError verifies failed Infrastructure reads return the API
+// error without printing a discovery report.
 func TestDiscoveryReturnsAPIError(t *testing.T) {
 	resource := schema.GroupResource{Group: configv1.GroupName, Resource: "infrastructures"}
 	for _, wantErr := range []error{
@@ -269,6 +277,8 @@ func TestDiscoveryReturnsAPIError(t *testing.T) {
 	}
 }
 
+// TestValidateDiscoveryOutput checks supported formats and rejects output flags
+// combined with a target topology or confirmation.
 func TestValidateDiscoveryOutput(t *testing.T) {
 	tests := []struct {
 		name           string
