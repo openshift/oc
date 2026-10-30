@@ -1,6 +1,7 @@
 package set
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -324,6 +325,11 @@ func updateDataForObject(obj runtime.Object, fn func(data map[string][]byte) err
 		if t.BinaryData == nil {
 			t.BinaryData = make(map[string][]byte)
 		}
+		// Snapshot original binaryData so untouched entries are not moved to data.
+		origBinary := make(map[string][]byte, len(t.BinaryData))
+		for k, v := range t.BinaryData {
+			origBinary[k] = append([]byte(nil), v...)
+		}
 		for k, v := range t.Data {
 			t.BinaryData[k] = []byte(v)
 		}
@@ -332,6 +338,9 @@ func updateDataForObject(obj runtime.Object, fn func(data map[string][]byte) err
 			return true, err
 		}
 		for k, v := range t.BinaryData {
+			if orig, ok := origBinary[k]; ok && bytes.Equal(orig, v) {
+				continue
+			}
 			if isBinary(v) {
 				continue
 			}
