@@ -54,8 +54,10 @@ var (
 		Infrastructure status. Shows each transition's availability and blocked checks.
 		Missing or stale evaluations are not treated as available transitions.
 		Use -o json or -o yaml to print the raw topologyTransitionStatus report,
-		including conditions and retained results. Consumers must check
-		TopologyTransitionsEvaluated before using retained results.
+		including conditions, retained results, and Infrastructure metadata.generation.
+		Before using retained results, consumers must check that
+		TopologyTransitionsEvaluated is True and its observedGeneration matches
+		metadata.generation.
 		With --control-plane and/or --infrastructure, validates readiness (dry-run).
 		Add --confirm to initiate the transition.
 		Use 'status' subcommand to monitor transition progress.

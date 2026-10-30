@@ -19,7 +19,15 @@ func (o *transitionOptions) runDiscoveryMode(infra *configv1.Infrastructure) err
 			return err
 		}
 
-		data, err := json.Marshal(infra.Status.TopologyTransitionStatus)
+		report := struct {
+			Metadata struct {
+				Generation int64 `json:"generation"`
+			} `json:"metadata"`
+			configv1.TopologyTransitionStatus
+		}{TopologyTransitionStatus: infra.Status.TopologyTransitionStatus}
+		report.Metadata.Generation = infra.Generation
+
+		data, err := json.Marshal(report)
 		if err != nil {
 			return fmt.Errorf("failed to encode topology transition status: %w", err)
 		}

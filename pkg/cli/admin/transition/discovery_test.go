@@ -54,9 +54,17 @@ func discoveryInfrastructure() *configv1.Infrastructure {
 	}
 }
 
-// TestDiscoveryStructuredOutput verifies JSON and YAML preserve the raw report,
-// including missing, pending, and stale results, using only one Infrastructure GET.
+// TestDiscoveryStructuredOutput verifies JSON and YAML include the Infrastructure
+// generation and preserve the raw report, including missing, pending, and stale
+// results, using only one Infrastructure GET.
 func TestDiscoveryStructuredOutput(t *testing.T) {
+	type discoveryOutput struct {
+		Metadata struct {
+			Generation int64 `json:"generation"`
+		} `json:"metadata"`
+		configv1.TopologyTransitionStatus
+	}
+
 	for _, format := range []string{"json", "yaml"} {
 		for _, state := range []string{"available", "blocked", "pending", "empty", "missing", "old generation"} {
 			t.Run(format+"/"+state, func(t *testing.T) {
@@ -100,14 +108,17 @@ func TestDiscoveryStructuredOutput(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				var got configv1.TopologyTransitionStatus
+				var got discoveryOutput
 				if err := yaml.UnmarshalStrict(out.Bytes(), &got); err != nil {
 					t.Fatalf("invalid %s output: %v\n%s", format, err, out)
 				}
 				if format == "json" && !json.Valid(out.Bytes()) {
 					t.Fatalf("invalid JSON output:\n%s", out)
 				}
-				if diff := cmp.Diff(infra.Status.TopologyTransitionStatus, got); diff != "" {
+				want := discoveryOutput{TopologyTransitionStatus: infra.Status.TopologyTransitionStatus}
+				want.Metadata.Generation = infra.Generation
+
+				if diff := cmp.Diff(want, got); diff != "" {
 					t.Errorf("report differs (-want +got):\n%s", diff)
 				}
 				if requests != 1 || errOut.Len() != 0 {
