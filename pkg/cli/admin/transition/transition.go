@@ -50,7 +50,14 @@ var (
 		Supports transitioning from SingleReplica to HighlyAvailable for both
 		control plane and infrastructure topology.
 
-		Without flags, shows current topology and available transitions.
+		Without target flags, reads current topology and supported transitions from
+		Infrastructure status. Shows each transition's availability and blocked checks.
+		Missing or stale evaluations are not treated as available transitions.
+		Use -o json or -o yaml to print the raw topologyTransitionStatus report,
+		including conditions, retained results, and Infrastructure metadata.generation.
+		Before using retained results, consumers must check that
+		TopologyTransitionsEvaluated is True and its observedGeneration matches
+		metadata.generation.
 		With --control-plane and/or --infrastructure, validates readiness (dry-run).
 		Add --confirm to initiate the transition.
 		Use 'status' subcommand to monitor transition progress.
@@ -62,6 +69,10 @@ var (
 	transitionExample = templates.Examples(`
 		# Show current topology and available transitions
 		oc adm transition topology
+
+		# Print the controller's discovery report as JSON or YAML
+		oc adm transition topology -o json
+		oc adm transition topology -o yaml
 
 		# Preview the topology change (dry-run, default behavior)
 		oc adm transition topology --control-plane=HighlyAvailable --infrastructure=HighlyAvailable
@@ -89,6 +100,7 @@ type transitionOptions struct {
 	}
 
 	configClient configv1client.Interface
+	printFlags   *genericclioptions.PrintFlags
 
 	genericclioptions.IOStreams
 }
@@ -96,7 +108,8 @@ type transitionOptions struct {
 // newTransitionOptions creates a new transitionOptions with default values
 func newTransitionOptions(streams genericclioptions.IOStreams) *transitionOptions {
 	return &transitionOptions{
-		IOStreams: streams,
+		IOStreams:  streams,
+		printFlags: genericclioptions.NewPrintFlags(""),
 	}
 }
 
@@ -137,6 +150,7 @@ func newCmdTopology(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 	cmd.Flags().StringVar(&o.args.targetControlPlaneTopology, "control-plane", "", "Target control plane topology (HighlyAvailable or SingleReplica)")
 	cmd.Flags().StringVar(&o.args.targetInfrastructureTopology, "infrastructure", "", "Target infrastructure topology (HighlyAvailable or SingleReplica)")
 	cmd.Flags().BoolVar(&o.args.confirm, "confirm", false, "Apply the transition (default is dry-run)")
+	cmd.Flags().StringVarP(o.printFlags.OutputFormat, "output", "o", "", "Output format for discovery: json or yaml")
 
 	return cmd
 }
@@ -161,6 +175,15 @@ func (o *transitionOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 
 // validateCommand validates the command options
 func (o *transitionOptions) validateCommand() error {
+	if format := *o.printFlags.OutputFormat; format != "" {
+		if format != "json" && format != "yaml" {
+			return fmt.Errorf("unsupported output format %q: must be json or yaml", format)
+		}
+		if o.args.targetControlPlaneTopology != "" || o.args.targetInfrastructureTopology != "" || o.args.confirm {
+			return fmt.Errorf("--output cannot be combined with --control-plane, --infrastructure, or --confirm")
+		}
+	}
+
 	validControlPlaneTopologies := map[string]bool{
 		string(configv1.HighlyAvailableTopologyMode): true,
 		string(configv1.SingleReplicaTopologyMode):   true,
@@ -226,60 +249,11 @@ func (o *transitionOptions) run(ctx context.Context) error {
 
 	// Mode 1: Discovery mode (no topology flags)
 	if o.target.ControlPlane == "" && o.target.Infrastructure == "" {
-		return o.runDiscoveryMode(ctx)
+		return o.runDiscoveryMode(infra)
 	}
 
 	// Mode 2: Initiate mode (at least one topology flag provided)
 	return o.runInitiateMode(ctx)
-}
-
-// runDiscoveryMode displays current topology and available transitions
-func (o *transitionOptions) runDiscoveryMode(ctx context.Context) error {
-	if _, err := fmt.Fprintf(o.Out, `
-  Current Topology Configuration:
-    Control Plane:\t%s
-    Infrastructure:\t%s\n`,
-		o.current.ControlPlane, o.current.Infrastructure); err != nil {
-		return err
-	}
-
-	var output strings.Builder
-
-	validTransitions, err := o.validator.GetValidTransitions(ctx)
-	if err != nil {
-		return fmt.Errorf("Unable to get the list of valid transitions: %w", err)
-	}
-
-	fmt.Fprintln(&output, "Available Transitions:")
-
-	if len(validTransitions) == 0 {
-		fmt.Fprintln(&output, "  No available transitions")
-
-		_, err := fmt.Fprint(o.Out, output.String())
-		return err
-	}
-
-	transitionFormat := `
-  - Control Plane:  %s\t->\t%s
-    Infrastructure: %s\t->\t%s`
-
-	for _, transition := range validTransitions {
-		fmt.Fprintf(&output, transitionFormat,
-			o.current.ControlPlane, transition.ControlPlane,
-			o.current.Infrastructure, transition.Infrastructure)
-	}
-
-	// Append the help text
-	fmt.Fprintf(&output, `
-
-  To validate transition readiness specify the target topology:
-    oc adm transition topology --control-plane={target}
-
-  To initiate transition provide the confirm flag:
-    oc adm transition topology --control-plane={target} --confirm`)
-
-	_, err = fmt.Fprintln(o.Out, output.String())
-	return err
 }
 
 // runInitiateMode previews or initiates a topology transition.
