@@ -1,11 +1,13 @@
 package set
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/spf13/cobra"
 	"k8s.io/klog/v2"
@@ -304,13 +306,11 @@ func (o *DataOptions) Run() error {
 	return utilerrors.NewAggregate(allErrs)
 }
 
+// isBinary reports whether data should be stored in ConfigMap binaryData.
+// Matches kubectl create configmap: valid UTF-8 belongs in data, everything
+// else in binaryData. Non-ASCII UTF-8 (e.g. "café") must remain in data.
 func isBinary(data []byte) bool {
-	for _, b := range data {
-		if b > 127 || (b < 32 && b != 9 && b != 10 && b != 13) {
-			return true
-		}
-	}
-	return false
+	return !utf8.Valid(data)
 }
 
 func updateDataForObject(obj runtime.Object, fn func(data map[string][]byte) error) (bool, error) {
@@ -325,6 +325,11 @@ func updateDataForObject(obj runtime.Object, fn func(data map[string][]byte) err
 		if t.BinaryData == nil {
 			t.BinaryData = make(map[string][]byte)
 		}
+		// Snapshot original binaryData so untouched entries are not moved to data.
+		origBinary := make(map[string][]byte, len(t.BinaryData))
+		for k, v := range t.BinaryData {
+			origBinary[k] = append([]byte(nil), v...)
+		}
 		for k, v := range t.Data {
 			t.BinaryData[k] = []byte(v)
 		}
@@ -333,6 +338,9 @@ func updateDataForObject(obj runtime.Object, fn func(data map[string][]byte) err
 			return true, err
 		}
 		for k, v := range t.BinaryData {
+			if orig, ok := origBinary[k]; ok && bytes.Equal(orig, v) {
+				continue
+			}
 			if isBinary(v) {
 				continue
 			}
