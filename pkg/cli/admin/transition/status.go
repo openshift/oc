@@ -3,8 +3,6 @@ package transition
 import (
 	"context"
 	"fmt"
-	"io"
-	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -22,9 +20,9 @@ var (
 	statusLong = templates.LongDesc(`
 		Monitor topology transition progress.
 
-		Displays the current control plane and infrastructure topology status,
-		and shows the cluster-config-operator transition conditions to monitor
-		transition progress.
+		Displays the current control plane and infrastructure topology status
+		(both spec and status), the topology transition lifecycle conditions,
+		and available transitions with their evaluations.
 	`)
 
 	statusExample = templates.Examples(`
@@ -92,37 +90,27 @@ func (o *statusOptions) run(ctx context.Context) error {
 	return o.printTopologyTransitionStatus(infra)
 }
 
-// printTopologyStatus will output the Control Plane and Infrastructure topologies from spec and status
+// printTopologyStatus outputs the Control Plane and Infrastructure topologies from spec and status
 func (o *statusOptions) printTopologyStatus(infra *configv1.Infrastructure) error {
-
-	notSet := "(not set)"
-	cpSpecTopology := string(infra.Spec.ControlPlaneTopology)
-	if cpSpecTopology == "" {
-		cpSpecTopology = notSet
+	spec := TopologyState{
+		ControlPlane:   infra.Spec.ControlPlaneTopology,
+		Infrastructure: infra.Spec.InfrastructureTopology,
+	}
+	status := TopologyState{
+		ControlPlane:   infra.Status.ControlPlaneTopology,
+		Infrastructure: infra.Status.InfrastructureTopology,
 	}
 
-	cpStatusTopology := string(infra.Status.ControlPlaneTopology)
-	if cpStatusTopology == "" {
-		cpStatusTopology = notSet
-	}
-
-	infraStatusTopology := string(infra.Status.InfrastructureTopology)
-	if infraStatusTopology == "" {
-		infraStatusTopology = notSet
-	}
-
-	var output strings.Builder
-	statusOutput := `
+	if _, err := fmt.Fprintf(o.Out, `
 Control Plane Topology:
   Spec (desired):   %s
   Status (current): %s
 
 Infrastructure Topology:
+  Spec (desired):   %s
   Status (current): %s
-`
-	fmt.Fprintf(&output, statusOutput, cpSpecTopology, cpStatusTopology, infraStatusTopology)
-
-	if _, err := io.WriteString(o.Out, output.String()); err != nil {
+`, formatTopologyValue(string(spec.ControlPlane)), formatTopologyValue(string(status.ControlPlane)),
+		formatTopologyValue(string(spec.Infrastructure)), formatTopologyValue(string(status.Infrastructure))); err != nil {
 		return err
 	}
 
@@ -133,8 +121,6 @@ Infrastructure Topology:
 // conditions and the available transitions, marshalled from
 // transitionStatusHeader.
 func (o *statusOptions) printTopologyTransitionStatus(infra *configv1.Infrastructure) error {
-
-	// Pull out the relevant conditions from infrastructure API.
 	evaluatedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionsEvaluatedConditionType)
 	completedCond := metav1helpers.FindStatusCondition(infra.Status.TopologyTransitionStatus.Conditions, configv1.TopologyTransitionCompletedConditionType)
 
@@ -163,19 +149,12 @@ type transitionStatusHeader struct {
 // transitionStatusBody encapsulates the topology transition status output so
 // it can be marshalled to JSON or YAML.
 type transitionStatusBody struct {
-	// Evaluated is the TopologyTransitionsEvaluated condition of the transition status.
-	Evaluated transitionConditionOutput `json:"Evaluated"`
-
-	// Completed is the TopologyTransitionCompleted condition of the transition status.
-	Completed transitionConditionOutput `json:"Completed"`
-
-	// AvailableTransitions lists the transitions the cluster may perform
-	// together with their evaluations. Omitted when no transitions are available.
+	Evaluated            transitionConditionOutput   `json:"Evaluated"`
+	Completed            transitionConditionOutput   `json:"Completed"`
 	AvailableTransitions []availableTransitionOutput `json:"Available Transitions,omitempty"`
 }
 
-// transitionConditionOutput describes a topology transition condition. Type is
-// only set for transition evaluations, where it labels the evaluation.
+// transitionConditionOutput describes a topology transition condition.
 type transitionConditionOutput struct {
 	Type    string `json:"Type,omitempty"`
 	Status  string `json:"Status,omitempty"`
@@ -197,15 +176,8 @@ type transitionTopologyOutput struct {
 	InfrastructureTopology string `json:"Infrastructure Topology"`
 }
 
-// conditionNotAvailable is reported for topology transition conditions that
-// are not present in the Infrastructure status.
 const conditionNotAvailable = "Condition not available"
 
-// newTransitionConditionOutput converts a topology transition condition into
-// its output representation. A nil condition maps to a "Condition not
-// available" message: the controller always reports both conditions once
-// TopologyTransitionStatus is set, but that status is optional and may be
-// absent on clusters where the topology controller does not report it.
 func newTransitionConditionOutput(cond *metav1.Condition) transitionConditionOutput {
 	if cond == nil {
 		return transitionConditionOutput{Message: conditionNotAvailable}
@@ -217,8 +189,6 @@ func newTransitionConditionOutput(cond *metav1.Condition) transitionConditionOut
 	}
 }
 
-// newAvailableTransitionOutput converts a topology transition and its
-// evaluations into their output representation.
 func newAvailableTransitionOutput(transition configv1.TopologyTransition) availableTransitionOutput {
 	output := availableTransitionOutput{
 		Source:      newTransitionTopologyOutput(transition.Source),
@@ -233,7 +203,6 @@ func newAvailableTransitionOutput(transition configv1.TopologyTransition) availa
 	return output
 }
 
-// newTransitionTopologyOutput converts a topology state into its output representation.
 func newTransitionTopologyOutput(state configv1.TopologyState) transitionTopologyOutput {
 	return transitionTopologyOutput{
 		ControlPlaneTopology:   string(state.ControlPlaneTopology),

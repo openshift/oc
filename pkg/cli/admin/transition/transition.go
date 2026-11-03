@@ -2,6 +2,7 @@ package transition
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"maps"
 	"slices"
@@ -12,9 +13,10 @@ import (
 
 	configv1 "github.com/openshift/api/config/v1"
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
-	"k8s.io/client-go/util/retry"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -48,7 +50,9 @@ var (
 		Single-Node OpenShift (SNO) and Highly Available (HA) configurations.
 
 		Supports transitioning from SingleReplica to HighlyAvailable for both
-		control plane and infrastructure topology.
+		control plane and infrastructure topology. Infrastructure topology can
+		be transitioned independently when the control plane is already
+		HighlyAvailable.
 
 		Without target flags, reads current topology and supported transitions from
 		Infrastructure status. Shows each transition's availability and blocked checks.
@@ -74,10 +78,16 @@ var (
 		oc adm transition topology -o json
 		oc adm transition topology -o yaml
 
-		# Preview the topology change (dry-run, default behavior)
+		# Preview infrastructure topology transition (dry-run)
+		oc adm transition topology --infrastructure=HighlyAvailable
+
+		# Preview control plane + infrastructure transition (dry-run)
 		oc adm transition topology --control-plane=HighlyAvailable --infrastructure=HighlyAvailable
 
-		# Initiate transition to HighlyAvailable topology (both control plane and infrastructure)
+		# Initiate standalone infrastructure topology transition
+		oc adm transition topology --infrastructure=HighlyAvailable --confirm
+
+		# Initiate both control plane and infrastructure transition
 		oc adm transition topology --control-plane=HighlyAvailable --infrastructure=HighlyAvailable --confirm
 
 		# Monitor transition progress
@@ -118,7 +128,7 @@ func NewCmdTransition(f kcmdutil.Factory, streams genericclioptions.IOStreams) *
 	cmd := &cobra.Command{
 		Use:   "transition",
 		Short: "Transition cluster resources",
-		Long:  "Transition cluster resources such as control plane topology.",
+		Long:  "Transition cluster resources such as control plane and infrastructure topology.",
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
@@ -136,7 +146,7 @@ func newCmdTopology(f kcmdutil.Factory, streams genericclioptions.IOStreams) *co
 
 	cmd := &cobra.Command{
 		Use:     "topology",
-		Short:   "Transition cluster control plane topology",
+		Short:   "Transition cluster control plane and infrastructure topology",
 		Long:    transitionLong,
 		Example: transitionExample,
 		Args:    cobra.NoArgs,
@@ -246,10 +256,22 @@ func (o *transitionOptions) run(ctx context.Context) error {
 		Infrastructure: infra.Status.InfrastructureTopology,
 	}
 	o.validator.Current = o.current
+	o.validator.Transitions = infra.Status.TopologyTransitionStatus.Transitions
 
 	// Mode 1: Discovery mode (no topology flags)
 	if o.target.ControlPlane == "" && o.target.Infrastructure == "" {
 		return o.runDiscoveryMode(infra)
+	}
+
+	evaluated := meta.FindStatusCondition(
+		infra.Status.TopologyTransitionStatus.Conditions,
+		configv1.TopologyTransitionsEvaluatedConditionType,
+	)
+
+	if evaluated == nil ||
+		evaluated.Status != metav1.ConditionTrue ||
+		evaluated.ObservedGeneration != infra.Generation {
+		return fmt.Errorf("topology transition evaluations are unavailable or not current; wait for the controller to finish evaluating transitions")
 	}
 
 	// Mode 2: Initiate mode (at least one topology flag provided)
@@ -258,7 +280,8 @@ func (o *transitionOptions) run(ctx context.Context) error {
 
 // runInitiateMode previews or initiates a topology transition.
 func (o *transitionOptions) runInitiateMode(ctx context.Context) error {
-	// Handle HA Compact if going from CP SNO -> HA and no infra target was specified
+	// HA Compact auto-fill: if transitioning CP from SNO->HA and no infra target specified,
+	// auto-set infrastructure to HA as well (compact cluster behavior).
 	if o.current.ControlPlane == configv1.SingleReplicaTopologyMode &&
 		o.target.ControlPlane == configv1.HighlyAvailableTopologyMode &&
 		o.current.Infrastructure == configv1.SingleReplicaTopologyMode &&
@@ -266,8 +289,21 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context) error {
 		o.target.Infrastructure = configv1.HighlyAvailableTopologyMode
 	}
 
-	// Check if cluster is already at target topology (no transition needed)
-	if o.current.ControlPlane == o.target.ControlPlane && o.current.Infrastructure == o.target.Infrastructure {
+	// Determine effective target (fill in current values for unspecified flags)
+	effectiveTarget := TopologyState{
+		ControlPlane:   o.target.ControlPlane,
+		Infrastructure: o.target.Infrastructure,
+	}
+	if effectiveTarget.ControlPlane == "" {
+		effectiveTarget.ControlPlane = o.current.ControlPlane
+	}
+	if effectiveTarget.Infrastructure == "" {
+		effectiveTarget.Infrastructure = o.current.Infrastructure
+	}
+
+	// Check if cluster is already at target topology
+	if o.current.ControlPlane == effectiveTarget.ControlPlane &&
+		o.current.Infrastructure == effectiveTarget.Infrastructure {
 		_, err := fmt.Fprintf(o.Out, `Cluster is already at target topology:
   Control Plane:   %s
   Infrastructure:  %s
@@ -277,71 +313,107 @@ func (o *transitionOptions) runInitiateMode(ctx context.Context) error {
 		return err
 	}
 
-	if err := o.validator.Validate(ctx, o.target); err != nil {
+	// Validate the transition against server-advertised available transitions
+	if err := o.validator.Validate(effectiveTarget); err != nil {
 		return fmt.Errorf("topology validation failed: %w", err)
 	}
 
-	// If no --confirm, show dry-run message
+	// Determine what spec fields will change
+	cpChange := o.target.ControlPlane != "" && o.target.ControlPlane != o.current.ControlPlane
+	infraChange := o.target.Infrastructure != "" && o.target.Infrastructure != o.current.Infrastructure
+
+	// If no --confirm, show dry-run preview
 	if !o.args.confirm {
-		_, err := fmt.Fprintf(o.Out, `
-Dry run: Would patch Infrastructure spec:
-  spec.controlPlaneTopology:
-    %s
-
-Note: The cluster-config-operator will update both status.controlPlaneTopology
-    and status.infrastructureTopology to %s based on this change.
-
-Add --confirm to apply this transition
-`,
-			string(o.target.ControlPlane), string(o.target.ControlPlane))
-		return err
+		return o.printDryRun(effectiveTarget, cpChange, infraChange)
 	}
 
 	// Apply transition
-	return o.applyTransition(ctx)
+	return o.applyTransition(ctx, cpChange, infraChange)
 }
 
-// applyTransition patches the Infrastructure resource to initiate the transition
-func (o *transitionOptions) applyTransition(ctx context.Context) error {
+// printDryRun displays what the transition would change without applying it.
+func (o *transitionOptions) printDryRun(effectiveTarget TopologyState, cpChange, infraChange bool) error {
+	var output strings.Builder
+	fmt.Fprintln(&output, "Dry run: The following changes would be applied:")
+
+	if cpChange {
+		fmt.Fprintf(&output, "  spec.controlPlaneTopology:   %s -> %s\n",
+			o.current.ControlPlane, o.target.ControlPlane)
+	}
+	if infraChange {
+		fmt.Fprintf(&output, "  spec.infrastructureTopology: %s -> %s\n",
+			o.current.Infrastructure, o.target.Infrastructure)
+	}
+
+	// Show prerequisite evaluations if available
+	t := o.validator.FindTransition(effectiveTarget)
+	if t != nil {
+		passed := GetPassedEvaluations(t)
+		failed := GetFailedEvaluations(t)
+
+		if len(passed) > 0 || len(failed) > 0 {
+			fmt.Fprintln(&output, "\n  Prerequisites:")
+			for _, p := range passed {
+				fmt.Fprintf(&output, "    + %s: %s\n", p.Type, p.Message)
+			}
+			for _, f := range failed {
+				fmt.Fprintf(&output, "    - %s: %s\n", f.Type, f.Message)
+			}
+		}
+	}
+
+	fmt.Fprintln(&output, "\nAdd --confirm to apply this transition")
+
+	_, err := fmt.Fprint(o.Out, output.String())
+	return err
+}
+
+// applyTransition patches the Infrastructure resource to initiate the transition.
+func (o *transitionOptions) applyTransition(ctx context.Context, cpChange, infraChange bool) error {
 	if _, err := fmt.Fprintf(o.Out, "Initiating topology transition...\n"); err != nil {
 		return err
 	}
 
-	// Update Infrastructure resource with retry on conflict
-	// Use RetryOnConflict to handle resourceVersion conflicts with other controllers
-	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
-		// Get current Infrastructure resource
-		infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, infrastructureResourceName, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("failed to get Infrastructure resource: %w", err)
-		}
+	// Merge-patch only the spec fields that change, so unspecified topology
+	// fields keep their current values.
+	spec := map[string]interface{}{}
+	if cpChange {
+		spec["controlPlaneTopology"] = string(o.target.ControlPlane)
+	}
+	if infraChange {
+		spec["infrastructureTopology"] = string(o.target.Infrastructure)
+	}
 
-		// Patch control plane topology (spec only supports controlPlaneTopology)
-		// NOTE: InfrastructureTopology only exists in status currently, not spec.
-		// For SNO->HA transition, the cluster-config-operator will update both
-		// controlPlaneTopology and infrastructureTopology in status.
-		infra.Spec.ControlPlaneTopology = o.target.ControlPlane
-
-		_, err = o.configClient.ConfigV1().Infrastructures().Update(ctx, infra, metav1.UpdateOptions{})
-		return err
-	})
+	patchBytes, err := json.Marshal(map[string]interface{}{"spec": spec})
 	if err != nil {
+		return fmt.Errorf("failed to marshal patch: %w", err)
+	}
+
+	if _, err := o.configClient.ConfigV1().Infrastructures().Patch(
+		ctx, infrastructureResourceName, types.MergePatchType, patchBytes, metav1.PatchOptions{}); err != nil {
 		return fmt.Errorf("failed to update Infrastructure resource: %w", err)
 	}
 
-	_, err = fmt.Fprintf(o.Out, `
-Infrastructure spec patched:
-  spec.controlPlaneTopology:
-    %s
+	var output strings.Builder
+	fmt.Fprintln(&output, "\nInfrastructure spec patched:")
+	if cpChange {
+		fmt.Fprintf(&output, "  spec.controlPlaneTopology:   %s\n", o.target.ControlPlane)
+	}
+	if infraChange {
+		fmt.Fprintf(&output, "  spec.infrastructureTopology: %s\n", o.target.Infrastructure)
+	}
 
-Note: The cluster-config-operator will update status.controlPlaneTopology
-  and status.infrastructureTopology based on this change.
+	fmt.Fprintln(&output, "\nTransition initiated. Monitor progress with:")
+	fmt.Fprintln(&output, "  oc adm transition status")
 
-Transition initiated. Operators will reconfigure to the new topology.
-
-Monitor transition progress with:
-  oc adm transition status
-`,
-		string(o.target.ControlPlane))
+	_, err = fmt.Fprint(o.Out, output.String())
 	return err
+}
+
+// formatTopologyValue returns "(not set)" for empty topology values.
+func formatTopologyValue(v string) string {
+	if v == "" {
+		return "(not set)"
+	}
+	return v
 }

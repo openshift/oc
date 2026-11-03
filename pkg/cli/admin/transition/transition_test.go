@@ -2,6 +2,7 @@ package transition
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -48,16 +49,24 @@ DISCOVERY MODE
   - Server-reported discovery               - See discovery_test.go
 
 INITIATE MODE
-  - Patches Infrastructure with --confirm   - Verifies Update action with correct topology
-  - Default dry-run without --confirm       - Verifies no Update action, dry-run output
+  - Patches Infrastructure with --confirm   - Verifies Patch action with correct topology,
+                                              including standalone infrastructure transitions
+  - Default dry-run without --confirm       - Verifies no Patch action, dry-run output
   - Already at target topology              - Early exit with success message, no validation
+  - Server-advertised transition validation - Validates against status.topologyTransitionStatus
 
 STATUS COMMAND
-  - Status command output                   - 6 scenarios: transition in progress, stable,
+  - Status command output                   - 7 scenarios: transition in progress, stable,
                                               preflight failed, unsupported, empty infra topology,
-                                              missing condition
+                                              missing condition, transitions without conditions
   - Transitions array display               - nil, empty, single, multiple, no evaluations
   - Output struct construction              - Condition and transition output mapping
+
+VALIDATOR
+  - FindTransition                          - Source/target matching, wildcard target fields,
+                                              disambiguation among transitions sharing a target
+  - Validate                                - Unavailable transitions and prerequisite failure
+                                              reporting; empty advertised-transition list
 
 --------------------------------------------------------------------------------
 */
@@ -120,6 +129,20 @@ func TestNewCmdTransition(t *testing.T) {
 		}
 	}
 }
+
+// findSubcommand finds a subcommand by name
+func findSubcommand(parent *cobra.Command, name string) *cobra.Command {
+	for _, cmd := range parent.Commands() {
+		if cmd.Name() == name {
+			return cmd
+		}
+	}
+	return nil
+}
+
+// ================================================================================
+// VALIDATION TESTS
+// ================================================================================
 
 // TestValidate_TopologyFlags tests --control-plane and --infrastructure flag validation
 func TestValidate_TopologyFlags(t *testing.T) {
@@ -257,175 +280,334 @@ func TestValidate_FlagDependencies(t *testing.T) {
 	}
 }
 
-// findSubcommand finds a subcommand by name
-func findSubcommand(parent *cobra.Command, name string) *cobra.Command {
-	for _, cmd := range parent.Commands() {
-		if cmd.Name() == name {
-			return cmd
+// ================================================================================
+// INITIATE MODE TESTS
+// ================================================================================
+
+// patchedTopologySpec returns the topology spec fields from the patch applied to
+// the Infrastructure resource. It fails the test if no patch was recorded.
+func patchedTopologySpec(t *testing.T, actions []ktesting.Action) (controlPlane, infrastructure configv1.TopologyMode) {
+	t.Helper()
+	for _, action := range actions {
+		patchAction, ok := action.(ktesting.PatchAction)
+		if !ok || action.GetResource().Resource != "infrastructures" {
+			continue
 		}
+		var patch struct {
+			Spec struct {
+				ControlPlaneTopology   configv1.TopologyMode `json:"controlPlaneTopology,omitempty"`
+				InfrastructureTopology configv1.TopologyMode `json:"infrastructureTopology,omitempty"`
+			} `json:"spec"`
+		}
+		if err := json.Unmarshal(patchAction.GetPatch(), &patch); err != nil {
+			t.Fatalf("failed to unmarshal Infrastructure patch: %v", err)
+		}
+		return patch.Spec.ControlPlaneTopology, patch.Spec.InfrastructureTopology
 	}
-	return nil
+	t.Fatal("expected Infrastructure patch action, got none")
+	return "", ""
 }
 
-// TestRunInitiateMode_PatchesInfrastructure verifies that the command patches Infrastructure.spec.controlPlaneTopology
-func TestRunInitiateMode_PatchesInfrastructure(t *testing.T) {
+// hasPatchAction reports whether any Infrastructure patch was recorded.
+func hasPatchAction(actions []ktesting.Action) bool {
+	for _, action := range actions {
+		if action.GetVerb() == "patch" && action.GetResource().Resource == "infrastructures" {
+			return true
+		}
+	}
+	return false
+}
+
+func TestRunInitiateMode_InfrastructureOnlyPatch(t *testing.T) {
 	streams, _, out, _ := genericclioptions.NewTestIOStreams()
 
-	// Create fake infrastructure resource (current: SingleReplica)
 	infra := &configv1.Infrastructure{
 		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 		Status: configv1.InfrastructureStatus{
-			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
 			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
 		},
-		Spec: configv1.InfrastructureSpec{
-			ControlPlaneTopology: configv1.SingleReplicaTopologyMode,
+	}
+
+	transitions := []configv1.TopologyTransition{
+		{
+			Source: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+			},
+			Target: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+			},
+			Evaluations: []metav1.Condition{
+				{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Reason: "TransitionAvailable", Message: "All checks passed"},
+			},
 		},
 	}
 
 	configClient := fakeconfigclient.NewSimpleClientset(infra)
 
 	o := newTransitionOptions(streams)
-	o.target = TopologyState{
+	o.current = TopologyState{
 		ControlPlane:   configv1.HighlyAvailableTopologyMode,
-		Infrastructure: configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
+	}
+	o.target = TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode}
+	o.validator = TransitionValidator{
+		Current:     o.current,
+		Transitions: transitions,
 	}
 	o.args.confirm = true
 	o.configClient = configClient
 
-	// Run the command
-	err := o.run(context.Background())
+	err := o.runInitiateMode(context.Background())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	// Verify Infrastructure was updated
-	actions := configClient.Actions()
-	var updateAction ktesting.UpdateAction
-	for _, action := range actions {
-		if action.GetVerb() == "update" && action.GetResource().Resource == "infrastructures" {
-			updateAction = action.(ktesting.UpdateAction)
-			break
-		}
+	// Verify infrastructure topology was patched
+	patchedCP, patchedInfra := patchedTopologySpec(t, configClient.Actions())
+	if patchedInfra != configv1.HighlyAvailableTopologyMode {
+		t.Errorf("expected patched infrastructure=%s, got %s",
+			configv1.HighlyAvailableTopologyMode, patchedInfra)
 	}
-
-	if updateAction == nil {
-		t.Fatal("expected Infrastructure update action, got none")
-	}
-
-	updatedInfra := updateAction.GetObject().(*configv1.Infrastructure)
-	if updatedInfra.Spec.ControlPlaneTopology != configv1.HighlyAvailableTopologyMode {
-		t.Errorf("expected spec.controlPlaneTopology=%s, got %s",
-			configv1.HighlyAvailableTopologyMode, updatedInfra.Spec.ControlPlaneTopology)
-	}
-
-	// Verify output confirms transition
-	if !strings.Contains(out.String(), "Initiating topology transition") {
-		t.Error("expected output to confirm transition initiation")
-	}
-}
-
-// TestRunInitiateMode_DefaultDryRun verifies that without --confirm the command runs in dry-run mode
-func TestRunInitiateMode_DefaultDryRun(t *testing.T) {
-	streams, _, out, _ := genericclioptions.NewTestIOStreams()
-
-	// Create fake infrastructure resource
-	infra := &configv1.Infrastructure{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
-		Status: configv1.InfrastructureStatus{
-			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
-			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
-		},
-		Spec: configv1.InfrastructureSpec{
-			ControlPlaneTopology: configv1.SingleReplicaTopologyMode,
-		},
-	}
-
-	configClient := fakeconfigclient.NewSimpleClientset(infra)
-
-	o := newTransitionOptions(streams)
-	o.target = TopologyState{
-		ControlPlane:   configv1.HighlyAvailableTopologyMode,
-		Infrastructure: configv1.HighlyAvailableTopologyMode,
-	}
-	o.configClient = configClient
-
-	// Run the command
-	err := o.run(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Verify NO Infrastructure update occurred
-	actions := configClient.Actions()
-	for _, action := range actions {
-		if action.GetVerb() == "update" {
-			t.Error("expected no update action in dry-run mode")
-		}
-	}
-
-	// Verify dry-run message in output
-	if !strings.Contains(out.String(), "Dry run") {
-		t.Error("expected output to indicate dry-run mode")
-	}
-	if !strings.Contains(out.String(), "Add --confirm") {
-		t.Error("expected output to mention --confirm flag")
-	}
-}
-
-// TestRunInitiateMode_AlreadyAtTarget verifies that when cluster is already at target,
-// the command exits successfully without running validation or patching
-func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
-	streams, _, out, _ := genericclioptions.NewTestIOStreams()
-
-	// Create fake infrastructure resource (already at SingleReplica)
-	infra := &configv1.Infrastructure{
-		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
-		Status: configv1.InfrastructureStatus{
-			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
-			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
-		},
-		Spec: configv1.InfrastructureSpec{
-			ControlPlaneTopology: configv1.SingleReplicaTopologyMode,
-		},
-	}
-
-	configClient := fakeconfigclient.NewSimpleClientset(infra)
-
-	o := newTransitionOptions(streams)
-	o.target = TopologyState{
-		ControlPlane:   configv1.SingleReplicaTopologyMode,
-		Infrastructure: configv1.SingleReplicaTopologyMode,
-	}
-	o.configClient = configClient
-
-	// Run the command
-	err := o.run(context.Background())
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Verify NO Infrastructure update occurred (no-op)
-	actions := configClient.Actions()
-	for _, action := range actions {
-		if action.GetVerb() == "update" {
-			t.Error("expected no update action when already at target")
-		}
+	// Control plane should NOT be patched (empty = unchanged)
+	if patchedCP != "" {
+		t.Errorf("expected patched control plane to be empty (unchanged), got %s", patchedCP)
 	}
 
 	output := out.String()
+	if !strings.Contains(output, "spec.infrastructureTopology") {
+		t.Errorf("expected output to mention spec.infrastructureTopology, got:\n%s", output)
+	}
+	if !strings.Contains(output, "oc adm transition status") {
+		t.Errorf("expected output to suggest monitoring command, got:\n%s", output)
+	}
+}
 
-	// Verify success message
+func TestRunInitiateMode_ControlPlaneOnlyPatch(t *testing.T) {
+	streams, _, out, _ := genericclioptions.NewTestIOStreams()
+
+	infra := &configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+		Status: configv1.InfrastructureStatus{
+			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+	}
+
+	transitions := []configv1.TopologyTransition{
+		{
+			Source: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+				InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+			},
+			Target: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+			},
+			Evaluations: []metav1.Condition{
+				{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Reason: "TransitionAvailable", Message: "All checks passed"},
+			},
+		},
+	}
+
+	configClient := fakeconfigclient.NewSimpleClientset(infra)
+
+	o := newTransitionOptions(streams)
+	o.current = TopologyState{
+		ControlPlane:   configv1.SingleReplicaTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
+	}
+	// CP only — compact auto-fill should set infra too
+	o.target = TopologyState{ControlPlane: configv1.HighlyAvailableTopologyMode}
+	o.validator = TransitionValidator{
+		Current:     o.current,
+		Transitions: transitions,
+	}
+	o.args.confirm = true
+	o.configClient = configClient
+
+	err := o.runInitiateMode(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Compact auto-fill: should patch both
+	patchedCP, patchedInfra := patchedTopologySpec(t, configClient.Actions())
+	if patchedCP != configv1.HighlyAvailableTopologyMode {
+		t.Errorf("expected patched control plane=%s, got %s",
+			configv1.HighlyAvailableTopologyMode, patchedCP)
+	}
+	if patchedInfra != configv1.HighlyAvailableTopologyMode {
+		t.Errorf("expected patched infrastructure=%s (auto-fill), got %s",
+			configv1.HighlyAvailableTopologyMode, patchedInfra)
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "spec.controlPlaneTopology") {
+		t.Errorf("expected output to mention spec.controlPlaneTopology, got:\n%s", output)
+	}
+}
+
+func TestRunInitiateMode_DryRun_InfrastructureOnly(t *testing.T) {
+	streams, _, out, _ := genericclioptions.NewTestIOStreams()
+
+	infra := &configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+		Status: configv1.InfrastructureStatus{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+	}
+
+	transitions := []configv1.TopologyTransition{
+		{
+			Source: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+			},
+			Target: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+			},
+			Evaluations: []metav1.Condition{
+				{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Reason: "TransitionAvailable", Message: "All checks passed"},
+				{Type: "WorkerNodesReady", Status: metav1.ConditionTrue, Reason: "SufficientWorkers", Message: "3 workers ready"},
+			},
+		},
+	}
+
+	configClient := fakeconfigclient.NewSimpleClientset(infra)
+
+	o := newTransitionOptions(streams)
+	o.current = TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
+	}
+	o.target = TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode}
+	o.validator = TransitionValidator{
+		Current:     o.current,
+		Transitions: transitions,
+	}
+	o.args.confirm = false
+	o.configClient = configClient
+
+	err := o.runInitiateMode(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Verify no patch was made
+	if hasPatchAction(configClient.Actions()) {
+		t.Error("expected no patch in dry-run mode")
+	}
+
+	output := out.String()
+	if !strings.Contains(output, "Dry run") {
+		t.Error("expected output to indicate dry-run mode")
+	}
+	if !strings.Contains(output, "spec.infrastructureTopology") {
+		t.Error("expected output to mention spec.infrastructureTopology")
+	}
+	if !strings.Contains(output, "Add --confirm") {
+		t.Error("expected output to suggest --confirm")
+	}
+	if !strings.Contains(output, "WorkerNodesReady") {
+		t.Error("expected output to show prerequisite evaluation")
+	}
+}
+
+func TestRunInitiateMode_AlreadyAtTarget(t *testing.T) {
+	streams, _, out, _ := genericclioptions.NewTestIOStreams()
+
+	infra := &configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+		Status: configv1.InfrastructureStatus{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+		},
+	}
+
+	configClient := fakeconfigclient.NewSimpleClientset(infra)
+
+	o := newTransitionOptions(streams)
+	o.current = TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.HighlyAvailableTopologyMode,
+	}
+	o.target = TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode}
+	o.configClient = configClient
+
+	err := o.runInitiateMode(context.Background())
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if hasPatchAction(configClient.Actions()) {
+		t.Error("expected no patch when already at target")
+	}
+
+	output := out.String()
 	if !strings.Contains(output, "Cluster is already at target topology") {
-		t.Error("expected output to indicate cluster is already at target")
+		t.Error("expected output to indicate already at target")
 	}
 	if !strings.Contains(output, "No transition initiated") {
 		t.Error("expected output to indicate no transition was initiated")
 	}
+}
 
-	// Verify validation was NOT run
-	if strings.Contains(output, "Running preflight validation") {
-		t.Error("expected validation to be skipped when already at target")
+func TestRunInitiateMode_PatchError(t *testing.T) {
+	streams := genericclioptions.NewTestIOStreamsDiscard()
+
+	infra := &configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
+		Status: configv1.InfrastructureStatus{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+	}
+
+	transitions := []configv1.TopologyTransition{
+		{
+			Source: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+			},
+			Target: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+			},
+			Evaluations: []metav1.Condition{
+				{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Reason: "TransitionAvailable", Message: "All checks passed"},
+			},
+		},
+	}
+
+	configClient := fakeconfigclient.NewSimpleClientset(infra)
+	configClient.PrependReactor("patch", "infrastructures", func(ktesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("conflict")
+	})
+
+	o := newTransitionOptions(streams)
+	o.current = TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.SingleReplicaTopologyMode,
+	}
+	o.target = TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode}
+	o.validator = TransitionValidator{
+		Current:     o.current,
+		Transitions: transitions,
+	}
+	o.args.confirm = true
+	o.configClient = configClient
+
+	err := o.runInitiateMode(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to update Infrastructure resource") {
+		t.Errorf("expected update error, got: %v", err)
 	}
 }
 
@@ -436,51 +618,221 @@ func TestRunInitiateModeReturnsWriteError(t *testing.T) {
 		ControlPlane:   configv1.SingleReplicaTopologyMode,
 		Infrastructure: configv1.SingleReplicaTopologyMode,
 	}
+	// CP SNO->HA triggers compact auto-fill for infra
 	o.target = TopologyState{ControlPlane: configv1.HighlyAvailableTopologyMode}
-	o.validator.Current = o.current
+	o.validator = TransitionValidator{
+		Current: o.current,
+		Transitions: []configv1.TopologyTransition{
+			{
+				Source: configv1.TopologyState{
+					ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+					InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+				},
+				Target: configv1.TopologyState{
+					ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+					InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+				},
+				Evaluations: []metav1.Condition{
+					{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Reason: "Available"},
+				},
+			},
+		},
+	}
 
-	if err := o.runInitiateMode(context.Background()); !errors.Is(err, wantErr) {
-		t.Fatalf("runInitiateMode() error = %v, want %v", err, wantErr)
+	err := o.runInitiateMode(context.Background())
+	if err == nil {
+		t.Fatal("expected error, got nil")
 	}
 }
 
-// TestStatusCommand tests the status subcommand output in various transition states
+// TestRun_InfraOnlyTransitionEndToEnd verifies that run() seeds the validator
+// with the server-advertised transitions from Infrastructure status and
+// completes an infrastructure-only transition against them.
+func TestRun_InfraOnlyTransitionEndToEnd(t *testing.T) {
+	streams, _, out, _ := genericclioptions.NewTestIOStreams()
+
+	infra := &configv1.Infrastructure{
+		ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName, Generation: 2},
+		Status: configv1.InfrastructureStatus{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+			TopologyTransitionStatus: configv1.TopologyTransitionStatus{
+				Conditions: []metav1.Condition{
+					{
+						Type:               configv1.TopologyTransitionsEvaluatedConditionType,
+						Status:             metav1.ConditionTrue,
+						ObservedGeneration: 2,
+						Reason:             "EvaluationComplete",
+						Message:            "Topology transition evaluations completed successfully",
+					},
+				},
+				Transitions: []configv1.TopologyTransition{
+					{
+						Source: configv1.TopologyState{
+							ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+							InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+						},
+						Target: configv1.TopologyState{
+							ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+							InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+						},
+						Evaluations: []metav1.Condition{
+							{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Reason: "TransitionAvailable", Message: "All checks passed"},
+						},
+					},
+				},
+			},
+		},
+	}
+
+	configClient := fakeconfigclient.NewSimpleClientset(infra)
+
+	o := newTransitionOptions(streams)
+	o.configClient = configClient
+	o.target = TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode}
+	o.args.confirm = true
+
+	if err := o.run(context.Background()); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// The advertised transition must have been used for validation, and only
+	// the infrastructure spec field may be patched.
+	patchedCP, patchedInfra := patchedTopologySpec(t, configClient.Actions())
+	if patchedInfra != configv1.HighlyAvailableTopologyMode {
+		t.Errorf("expected patched infrastructure=%s, got %s",
+			configv1.HighlyAvailableTopologyMode, patchedInfra)
+	}
+	if patchedCP != "" {
+		t.Errorf("expected patched control plane to be empty (unchanged), got %s", patchedCP)
+	}
+	if !strings.Contains(out.String(), "Transition initiated") {
+		t.Errorf("expected output to confirm initiation, got:\n%s", out.String())
+	}
+}
+
+// TestRun_StaleEvaluations verifies that run() refuses initiate mode when the
+// controller's transition evaluations are missing, not True, or stale relative
+// to the Infrastructure generation.
+func TestRun_StaleEvaluations(t *testing.T) {
+	tests := []struct {
+		name    string
+		infra   *configv1.Infrastructure
+		wantErr string
+	}{
+		{
+			name: "no topologyTransitionStatus",
+			infra: &configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName},
+				Status: configv1.InfrastructureStatus{
+					ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+					InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+				},
+			},
+			wantErr: "evaluations are unavailable or not current",
+		},
+		{
+			name: "evaluation still in progress",
+			infra: &configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName, Generation: 2},
+				Status: configv1.InfrastructureStatus{
+					ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+					InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+					TopologyTransitionStatus: configv1.TopologyTransitionStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:               configv1.TopologyTransitionsEvaluatedConditionType,
+								Status:             metav1.ConditionUnknown,
+								ObservedGeneration: 2,
+							},
+						},
+					},
+				},
+			},
+			wantErr: "evaluations are unavailable or not current",
+		},
+		{
+			name: "observed generation older than Infrastructure generation",
+			infra: &configv1.Infrastructure{
+				ObjectMeta: metav1.ObjectMeta{Name: infrastructureResourceName, Generation: 3},
+				Status: configv1.InfrastructureStatus{
+					ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+					InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+					TopologyTransitionStatus: configv1.TopologyTransitionStatus{
+						Conditions: []metav1.Condition{
+							{
+								Type:               configv1.TopologyTransitionsEvaluatedConditionType,
+								Status:             metav1.ConditionTrue,
+								ObservedGeneration: 2,
+							},
+						},
+					},
+				},
+			},
+			wantErr: "evaluations are unavailable or not current",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			configClient := fakeconfigclient.NewSimpleClientset(tc.infra)
+
+			o := newTransitionOptions(genericclioptions.NewTestIOStreamsDiscard())
+			o.configClient = configClient
+			o.target = TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode}
+			o.args.confirm = true
+
+			err := o.run(context.Background())
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Errorf("expected error to contain %q, got: %v", tc.wantErr, err)
+			}
+			if hasPatchAction(configClient.Actions()) {
+				t.Error("expected no patch when evaluations are stale")
+			}
+		})
+	}
+}
+
+// ================================================================================
+// STATUS COMMAND TESTS
+// ================================================================================
+
 func TestStatusCommand(t *testing.T) {
 	testCases := []struct {
 		name                   string
 		infraSpec              configv1.TopologyMode
 		infraStatus            configv1.TopologyMode
 		infraTopology          configv1.TopologyMode
+		infraTopologySpec      configv1.TopologyMode
 		evaluatedStatus        metav1.ConditionStatus
 		evaluatedReason        string
 		evaluatedMessage       string
 		completedStatus        metav1.ConditionStatus
 		completedReason        string
 		completedMessage       string
+		transitions            []configv1.TopologyTransition
 		expectedOutputContains []string
-		expectError            bool
 	}{
 		{
-			name:             "transition in progress",
-			infraSpec:        configv1.HighlyAvailableTopologyMode,
-			infraStatus:      configv1.SingleReplicaTopologyMode,
-			infraTopology:    configv1.SingleReplicaTopologyMode,
-			evaluatedStatus:  metav1.ConditionTrue,
-			evaluatedReason:  "TransitionAvailable",
-			evaluatedMessage: "Topology transition evaluations completed successfully",
-			completedStatus:  metav1.ConditionFalse,
-			completedReason:  "TopologyTransitionInProgress",
-			completedMessage: "Transitioning control plane topology from SingleReplica to HighlyAvailable",
+			name:              "transition in progress",
+			infraSpec:         configv1.HighlyAvailableTopologyMode,
+			infraStatus:       configv1.SingleReplicaTopologyMode,
+			infraTopology:     configv1.SingleReplicaTopologyMode,
+			infraTopologySpec: configv1.HighlyAvailableTopologyMode,
+			evaluatedStatus:   metav1.ConditionTrue,
+			evaluatedReason:   "TransitionAvailable",
+			evaluatedMessage:  "Topology transition evaluations completed successfully",
+			completedStatus:   metav1.ConditionFalse,
+			completedReason:   "TopologyTransitionInProgress",
+			completedMessage:  "Transitioning control plane topology from SingleReplica to HighlyAvailable",
 			expectedOutputContains: []string{
 				"Control Plane Topology:",
-				"Spec (desired):   HighlyAvailable",
-				"Status (current): SingleReplica",
 				"Infrastructure Topology:",
+				"Spec (desired):   HighlyAvailable",
 				"Transition Status:",
-				`Infrastructure Topology:
-  Status (current): SingleReplica
-
-Transition Status:`,
 				`Completed:
     Message: Transitioning control plane topology from SingleReplica to HighlyAvailable
     Reason: TopologyTransitionInProgress
@@ -492,16 +844,17 @@ Transition Status:`,
 			},
 		},
 		{
-			name:             "no transition",
-			infraSpec:        configv1.HighlyAvailableTopologyMode,
-			infraStatus:      configv1.HighlyAvailableTopologyMode,
-			infraTopology:    configv1.HighlyAvailableTopologyMode,
-			evaluatedStatus:  metav1.ConditionTrue,
-			evaluatedReason:  "EvaluationComplete",
-			evaluatedMessage: "Topology transition evaluations completed successfully",
-			completedStatus:  metav1.ConditionTrue,
-			completedReason:  "AsExpected",
-			completedMessage: "No topology transition in progress",
+			name:              "no transition",
+			infraSpec:         configv1.HighlyAvailableTopologyMode,
+			infraStatus:       configv1.HighlyAvailableTopologyMode,
+			infraTopology:     configv1.HighlyAvailableTopologyMode,
+			infraTopologySpec: configv1.HighlyAvailableTopologyMode,
+			evaluatedStatus:   metav1.ConditionTrue,
+			evaluatedReason:   "EvaluationComplete",
+			evaluatedMessage:  "Topology transition evaluations completed successfully",
+			completedStatus:   metav1.ConditionTrue,
+			completedReason:   "AsExpected",
+			completedMessage:  "No topology transition in progress",
 			expectedOutputContains: []string{
 				"Control Plane Topology:",
 				"Spec (desired):   HighlyAvailable",
@@ -567,7 +920,7 @@ Transition Status:`,
 			name:             "empty infrastructure topology",
 			infraSpec:        configv1.HighlyAvailableTopologyMode,
 			infraStatus:      configv1.HighlyAvailableTopologyMode,
-			infraTopology:    "", // Empty infrastructure topology
+			infraTopology:    "",
 			evaluatedStatus:  metav1.ConditionTrue,
 			evaluatedReason:  "EvaluationComplete",
 			evaluatedMessage: "Topology transition evaluations completed successfully",
@@ -575,8 +928,8 @@ Transition Status:`,
 			completedReason:  "AsExpected",
 			completedMessage: "No topology transition in progress",
 			expectedOutputContains: []string{
-				"Control Plane Topology:",
 				"Infrastructure Topology:",
+				"Spec (desired):   (not set)",
 				"Status (current): (not set)",
 				`Evaluated:
     Message: Topology transition evaluations completed successfully
@@ -602,17 +955,48 @@ Transition Status:`,
     Status: "True"`,
 			},
 		},
+		{
+			name:              "empty conditions but transitions populated",
+			infraSpec:         configv1.HighlyAvailableTopologyMode,
+			infraStatus:       configv1.HighlyAvailableTopologyMode,
+			infraTopology:     configv1.SingleReplicaTopologyMode,
+			infraTopologySpec: configv1.HighlyAvailableTopologyMode,
+			transitions: []configv1.TopologyTransition{
+				{
+					Source: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+						InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+					},
+					Target: configv1.TopologyState{
+						ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+						InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+					},
+					Evaluations: []metav1.Condition{
+						{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Reason: "TransitionAvailable", Message: "All checks passed"},
+						{Type: "WorkerNodesReady", Status: metav1.ConditionTrue, Reason: "SufficientWorkers", Message: "3 workers ready"},
+					},
+				},
+			},
+			expectedOutputContains: []string{
+				`Evaluated:
+    Message: Condition not available`,
+				`Completed:
+    Message: Condition not available`,
+				"Available Transitions:",
+				"WorkerNodesReady",
+			},
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			streams, _, out, _ := genericclioptions.NewTestIOStreams()
 
-			// Create fake infrastructure with TopologyTransitionStatus
 			infra := &configv1.Infrastructure{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 				Spec: configv1.InfrastructureSpec{
-					ControlPlaneTopology: tc.infraSpec,
+					ControlPlaneTopology:   tc.infraSpec,
+					InfrastructureTopology: tc.infraTopologySpec,
 				},
 				Status: configv1.InfrastructureStatus{
 					ControlPlaneTopology:   tc.infraStatus,
@@ -620,7 +1004,6 @@ Transition Status:`,
 				},
 			}
 
-			// Add TopologyTransitionStatus conditions
 			if tc.evaluatedStatus != "" || tc.completedStatus != "" {
 				conditions := []metav1.Condition{}
 
@@ -643,31 +1026,27 @@ Transition Status:`,
 				}
 
 				infra.Status.TopologyTransitionStatus = configv1.TopologyTransitionStatus{
-					Conditions: conditions,
+					Conditions:  conditions,
+					Transitions: tc.transitions,
+				}
+			} else if tc.transitions != nil {
+				infra.Status.TopologyTransitionStatus = configv1.TopologyTransitionStatus{
+					Transitions: tc.transitions,
 				}
 			}
 
 			configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-			// Create statusOptions
 			o := &statusOptions{
 				IOStreams:    streams,
 				configClient: configClient,
 			}
 
-			// Run status command
 			err := o.run(context.Background())
-			if tc.expectError {
-				if err == nil {
-					t.Fatalf("expected error, got nil")
-				}
-				return
-			}
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Verify output
 			output := out.String()
 			for _, expected := range tc.expectedOutputContains {
 				if !strings.Contains(output, expected) {
@@ -821,7 +1200,6 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			streams, _, out, _ := genericclioptions.NewTestIOStreams()
 
-			// Create fake infrastructure with basic topology and transitions
 			infra := &configv1.Infrastructure{
 				ObjectMeta: metav1.ObjectMeta{Name: "cluster"},
 				Spec: configv1.InfrastructureSpec{
@@ -852,19 +1230,16 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 
 			configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-			// Create statusOptions
 			o := &statusOptions{
 				IOStreams:    streams,
 				configClient: configClient,
 			}
 
-			// Run status command
 			err := o.run(context.Background())
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
 
-			// Verify expected output
 			output := out.String()
 			for _, expected := range tc.expectedOutputContains {
 				if !strings.Contains(output, expected) {
@@ -872,14 +1247,12 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 				}
 			}
 
-			// Verify missing output
 			for _, missing := range tc.expectedOutputMissing {
 				if strings.Contains(output, missing) {
 					t.Errorf("expected output to NOT contain %q, got:\n%s", missing, output)
 				}
 			}
 
-			// Verify multiple transitions are listed in the reported order
 			if strings.Count(output, "- Evaluations:") == 2 {
 				if first, second := strings.Index(output, "Transition is supported"), strings.Index(output, "HighlyAvailableArbiter"); first == -1 || second == -1 || first > second {
 					t.Errorf("expected transitions to be listed in order, got:\n%s", output)
@@ -1006,5 +1379,174 @@ func TestStatusCommandErrors(t *testing.T) {
 				t.Fatalf("run() error = %v, want %v", err, tc.out.err)
 			}
 		})
+	}
+}
+
+// ================================================================================
+// VALIDATOR TESTS
+// ================================================================================
+
+func TestValidator_FindTransition(t *testing.T) {
+	transitions := []configv1.TopologyTransition{
+		{
+			Source: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+			},
+			Target: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+			},
+		},
+	}
+
+	v := TransitionValidator{
+		Current: TopologyState{
+			ControlPlane:   configv1.HighlyAvailableTopologyMode,
+			Infrastructure: configv1.SingleReplicaTopologyMode,
+		},
+		Transitions: transitions,
+	}
+
+	t.Run("match by infra only", func(t *testing.T) {
+		found := v.FindTransition(TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode})
+		if found == nil {
+			t.Fatal("expected to find transition")
+		}
+	})
+
+	t.Run("match by both", func(t *testing.T) {
+		found := v.FindTransition(TopologyState{
+			ControlPlane:   configv1.HighlyAvailableTopologyMode,
+			Infrastructure: configv1.HighlyAvailableTopologyMode,
+		})
+		if found == nil {
+			t.Fatal("expected to find transition")
+		}
+	})
+
+	t.Run("no match on target", func(t *testing.T) {
+		found := v.FindTransition(TopologyState{Infrastructure: configv1.SingleReplicaTopologyMode})
+		if found != nil {
+			t.Error("expected no match")
+		}
+	})
+
+	t.Run("no match when source does not match current", func(t *testing.T) {
+		v2 := TransitionValidator{
+			Current: TopologyState{
+				ControlPlane:   configv1.SingleReplicaTopologyMode,
+				Infrastructure: configv1.SingleReplicaTopologyMode,
+			},
+			Transitions: transitions,
+		}
+		found := v2.FindTransition(TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode})
+		if found != nil {
+			t.Error("expected no match when source doesn't match current state")
+		}
+	})
+}
+
+func TestValidator_FindTransition_PicksCorrectSourceAmongSameTarget(t *testing.T) {
+	snoToHA := configv1.TopologyTransition{
+		Source: configv1.TopologyState{
+			ControlPlaneTopology:   configv1.SingleReplicaTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+		Target: configv1.TopologyState{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+		},
+		Evaluations: []metav1.Condition{
+			{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionFalse, Message: "Source mismatch"},
+		},
+	}
+	infraSRToHA := configv1.TopologyTransition{
+		Source: configv1.TopologyState{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+		},
+		Target: configv1.TopologyState{
+			ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+			InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+		},
+		Evaluations: []metav1.Condition{
+			{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionTrue, Message: "All checks passed"},
+		},
+	}
+
+	v := TransitionValidator{
+		Current: TopologyState{
+			ControlPlane:   configv1.HighlyAvailableTopologyMode,
+			Infrastructure: configv1.SingleReplicaTopologyMode,
+		},
+		Transitions: []configv1.TopologyTransition{snoToHA, infraSRToHA},
+	}
+
+	found := v.FindTransition(TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode})
+	if found == nil {
+		t.Fatal("expected to find transition")
+	}
+
+	if found.Source.ControlPlaneTopology != configv1.HighlyAvailableTopologyMode {
+		t.Errorf("expected to match infra-only transition (source CP=HA), got source CP=%s",
+			found.Source.ControlPlaneTopology)
+	}
+
+	avail, _ := IsTransitionAvailable(found)
+	if !avail {
+		t.Error("expected the matched transition to be available")
+	}
+}
+
+func TestValidator_Validate_NotAvailable(t *testing.T) {
+	transitions := []configv1.TopologyTransition{
+		{
+			Source: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.SingleReplicaTopologyMode,
+			},
+			Target: configv1.TopologyState{
+				ControlPlaneTopology:   configv1.HighlyAvailableTopologyMode,
+				InfrastructureTopology: configv1.HighlyAvailableTopologyMode,
+			},
+			Evaluations: []metav1.Condition{
+				{Type: configv1.TopologyTransitionAvailableConditionType, Status: metav1.ConditionFalse, Reason: "Failed", Message: "Prerequisites not met"},
+				{Type: "WorkerNodesReady", Status: metav1.ConditionFalse, Reason: "InsufficientWorkers", Message: "0 workers"},
+			},
+		},
+	}
+
+	v := TransitionValidator{
+		Current: TopologyState{
+			ControlPlane:   configv1.HighlyAvailableTopologyMode,
+			Infrastructure: configv1.SingleReplicaTopologyMode,
+		},
+		Transitions: transitions,
+	}
+
+	err := v.Validate(TopologyState{
+		ControlPlane:   configv1.HighlyAvailableTopologyMode,
+		Infrastructure: configv1.HighlyAvailableTopologyMode,
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "not available") {
+		t.Errorf("expected 'not available' in error, got: %v", err)
+	}
+	if !strings.Contains(err.Error(), "WorkerNodesReady") {
+		t.Errorf("expected prerequisite details in error, got: %v", err)
+	}
+}
+
+func TestValidator_Validate_NoTransitions(t *testing.T) {
+	v := TransitionValidator{}
+	err := v.Validate(TopologyState{Infrastructure: configv1.HighlyAvailableTopologyMode})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "no topology transitions are available") {
+		t.Errorf("expected 'no topology transitions', got: %v", err)
 	}
 }
