@@ -2,10 +2,11 @@ package nodeimage
 
 import (
 	"fmt"
-	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	"io"
+	"strings"
 
 	ocpv1 "github.com/openshift/api/config/v1"
+	operatorv1alpha1 "github.com/openshift/api/operator/v1alpha1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 )
@@ -22,12 +23,24 @@ func getIdmsContents(writer io.Writer, idmsMirrorSetList *ocpv1.ImageDigestMirro
 		},
 	}
 
+	skippedWildcards := 0
+
 	// Add mirrors from IDMS
 	if idmsMirrorSetList != nil {
 		log(writer, "Adding mirrors from ImageDigestMirrors")
 		for _, idms := range idmsMirrorSetList.Items {
+			skippedCount := 0
+			totalCount := len(idms.Spec.ImageDigestMirrors)
 			for _, digestMirror := range idms.Spec.ImageDigestMirrors {
+				if strings.HasPrefix(digestMirror.Source, "*.") {
+					skippedCount++
+					continue
+				}
 				imageDigestSet.Spec.ImageDigestMirrors = append(imageDigestSet.Spec.ImageDigestMirrors, digestMirror)
+			}
+			skippedWildcards += skippedCount
+			if skippedCount > 0 {
+				log(writer, "Warning: skipped %d wildcard source(s) from ImageDigestMirrorSet %q: wildcard sources are not supported by node-image image resolution. The remaining %d mirror(s) may not be sufficient for disconnected operations", skippedCount, idms.Name, totalCount-skippedCount)
 			}
 		}
 	}
@@ -36,7 +49,13 @@ func getIdmsContents(writer io.Writer, idmsMirrorSetList *ocpv1.ImageDigestMirro
 	if icspMirrorSetList != nil {
 		log(writer, "Adding mirrors from ImageContentSourcePolicies")
 		for _, icsp := range icspMirrorSetList.Items {
+			skippedCount := 0
+			totalCount := len(icsp.Spec.RepositoryDigestMirrors)
 			for _, digestMirror := range icsp.Spec.RepositoryDigestMirrors {
+				if strings.HasPrefix(digestMirror.Source, "*.") {
+					skippedCount++
+					continue
+				}
 				// Skip adding the mirror if the source already exists
 				if digestSourceExists(imageDigestSet.Spec.ImageDigestMirrors, digestMirror.Source) {
 					continue
@@ -49,7 +68,16 @@ func getIdmsContents(writer io.Writer, idmsMirrorSetList *ocpv1.ImageDigestMirro
 				}
 				imageDigestSet.Spec.ImageDigestMirrors = append(imageDigestSet.Spec.ImageDigestMirrors, mirror)
 			}
+			skippedWildcards += skippedCount
+			if skippedCount > 0 {
+				log(writer, "Warning: skipped %d wildcard source(s) from ImageContentSourcePolicy %q: wildcard sources are not supported by node-image image resolution. The remaining %d mirror(s) may not be sufficient for disconnected operations", skippedCount, icsp.Name, totalCount-skippedCount)
+			}
 		}
+	}
+
+	// Only fail when wildcards were skipped and nothing usable remains across all IDMS/ICSP resources.
+	if skippedWildcards > 0 && len(imageDigestSet.Spec.ImageDigestMirrors) == 0 {
+		return nil, fmt.Errorf("all mirror sources were wildcard entries which are not supported by node-image image resolution; no usable mirrors remain")
 	}
 
 	contents, err := yaml.Marshal(imageDigestSet)
