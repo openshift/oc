@@ -58,5 +58,5 @@ RUN if yum install -y iotop >/dev/null 2>&1; then IOTOP_PKG="iotop"; else IOTOP_
 CMD ["/usr/bin/bash"]
 LABEL io.k8s.display-name="OpenShift Tools" \
       io.k8s.description="Contains debugging and diagnostic tools for use with an OpenShift cluster." \
-      io.openshift.build.versions="kubectl=1.35.2" \
+      io.openshift.build.versions="kubectl=1.35.9" \
       io.openshift.tags="openshift,tools"
