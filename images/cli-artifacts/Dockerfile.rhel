@@ -10,7 +10,7 @@ WORKDIR /go/src/github.com/openshift/oc
 COPY . .
 RUN make cross-build --warn-undefined-variables
 
-FROM registry.ci.openshift.org/ocp/5.0:cli
+FROM registry.ci.openshift.org/ocp/5.1:cli
 
 COPY --from=builder-rhel-9 /go/src/github.com/openshift/oc/_output/bin/ /usr/share/openshift/
 
