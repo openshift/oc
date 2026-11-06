@@ -3,6 +3,7 @@ package login
 import (
 	"bytes"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -10,12 +11,45 @@ import (
 	"os"
 	"strings"
 
+	cliconfig "github.com/openshift/oc/pkg/helpers/kubeconfig"
 	"github.com/openshift/oc/pkg/helpers/term"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/cli-runtime/pkg/printers"
 	restclient "k8s.io/client-go/rest"
 	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 )
+
+// parseProxyURL validates a kubeconfig-style proxy URL.
+// Supported schemes match client-go's kubeconfig proxy-url validation.
+// Errors never include the raw URL, which may contain credentials.
+func parseProxyURL(proxyURL string) (*url.URL, error) {
+	u, err := url.Parse(proxyURL)
+	if err != nil {
+		return nil, errors.New("invalid --proxy-url: could not parse")
+	}
+
+	switch u.Scheme {
+	case "http", "https", "socks5":
+	default:
+		return nil, fmt.Errorf("invalid --proxy-url: unsupported scheme %q, must be http, https, or socks5", u.Scheme)
+	}
+	if u.Hostname() == "" {
+		return nil, errors.New("invalid --proxy-url: host must be specified")
+	}
+	return u, nil
+}
+
+// setClientConfigProxy configures rest.Config.Proxy from a proxy URL string.
+// When set, client-go uses this instead of HTTPS_PROXY/HTTP_PROXY, and
+// CreateConfig persists it to the kubeconfig cluster's proxy-url field.
+func setClientConfigProxy(clientConfig *restclient.Config, proxyURL string) error {
+	u, err := parseProxyURL(proxyURL)
+	if err != nil {
+		return err
+	}
+	clientConfig.Proxy = http.ProxyURL(u)
+	return nil
+}
 
 // getMatchingClusters examines the kubeconfig for all clusters that point to the same server
 func getMatchingClusters(clientConfig restclient.Config, kubeconfig clientcmdapi.Config) sets.String {
@@ -30,8 +64,15 @@ func getMatchingClusters(clientConfig restclient.Config, kubeconfig clientcmdapi
 	return ret
 }
 
-// findClusters returns the first cluster matching the host.
+// findCluster returns a cluster matching the host. Prefer the canonical
+// nickname CreateConfig would write, so login reuses the same cluster entry
+// (and its proxy-url) when multiple stanzas share a server URL.
 func findCluster(host string, kubeconfig clientcmdapi.Config) *clientcmdapi.Cluster {
+	if nick, err := cliconfig.GetClusterNicknameFromURL(host); err == nil {
+		if cluster, ok := kubeconfig.Clusters[nick]; ok && cluster.Server == host {
+			return cluster
+		}
+	}
 	for _, cluster := range kubeconfig.Clusters {
 		if cluster.Server == host {
 			return cluster

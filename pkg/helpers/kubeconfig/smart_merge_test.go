@@ -1,6 +1,8 @@
 package kubeconfig
 
 import (
+	"net/http"
+	"net/url"
 	"path/filepath"
 	"testing"
 
@@ -94,5 +96,93 @@ func TestLoginDoesNotCopySecondaryFileContextsToDefaultFile(t *testing.T) {
 	}
 	if _, ok := result.Contexts["my-project/new-cluster-example-com:6443/alice"]; !ok {
 		t.Error("primary config must contain the new login context")
+	}
+}
+
+func TestCreateConfigPersistsProxyURL(t *testing.T) {
+	proxyURL, err := url.Parse("http://squid.example.com:3128")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := CreateConfig("default", "alice", &restclient.Config{
+		Host:        "https://api.example.com:6443",
+		BearerToken: "token",
+		Proxy:       http.ProxyURL(proxyURL),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cluster, ok := cfg.Clusters["api-example-com:6443"]
+	if !ok {
+		t.Fatal("expected cluster entry")
+	}
+	if cluster.ProxyURL != proxyURL.String() {
+		t.Fatalf("ProxyURL = %q, want %q", cluster.ProxyURL, proxyURL.String())
+	}
+}
+
+func TestCreateConfigDoesNotPersistProxyWhenUnset(t *testing.T) {
+	cfg, err := CreateConfig("default", "alice", &restclient.Config{
+		Host:        "https://api.example.com:6443",
+		BearerToken: "token",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cluster, ok := cfg.Clusters["api-example-com:6443"]
+	if !ok {
+		t.Fatal("expected cluster entry")
+	}
+	if cluster.ProxyURL != "" {
+		t.Fatalf("expected empty ProxyURL, got %q", cluster.ProxyURL)
+	}
+}
+
+func TestMergeConfigKeepsDistinctClusterProxyURLs(t *testing.T) {
+	proxyA, err := url.Parse("http://proxy-a.example.com:3128")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxyB, err := url.Parse("http://proxy-b.example.com:3128")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	starting, err := CreateConfig("ns-a", "alice", &restclient.Config{
+		Host:        "https://api.cluster-a.example.com:6443",
+		BearerToken: "token-a",
+		Proxy:       http.ProxyURL(proxyA),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	addition, err := CreateConfig("ns-b", "bob", &restclient.Config{
+		Host:        "https://api.cluster-b.example.com:6443",
+		BearerToken: "token-b",
+		Proxy:       http.ProxyURL(proxyB),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	merged, err := MergeConfig(*starting, *addition)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	clusterA := merged.Clusters["api-cluster-a-example-com:6443"]
+	clusterB := merged.Clusters["api-cluster-b-example-com:6443"]
+	if clusterA == nil || clusterB == nil {
+		t.Fatalf("expected both clusters, got %#v", merged.Clusters)
+	}
+	if clusterA.ProxyURL != proxyA.String() {
+		t.Fatalf("cluster A ProxyURL = %q, want %q", clusterA.ProxyURL, proxyA.String())
+	}
+	if clusterB.ProxyURL != proxyB.String() {
+		t.Fatalf("cluster B ProxyURL = %q, want %q", clusterB.ProxyURL, proxyB.String())
 	}
 }

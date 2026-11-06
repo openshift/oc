@@ -52,6 +52,9 @@ var (
 
 		# Log in to the external OIDC issuer through Auth Code + PKCE by starting a local server listening on port 8080
 		oc login localhost:8443 --exec-plugin=oc-oidc --client-id=client-id --extra-scopes=email,profile --callback-port=8080
+
+		# Log in using a proxy and persist proxy-url in the kubeconfig cluster entry
+		oc login localhost:8443 --username=myuser --password=mypass --proxy-url=http://squid.example.com:3128
 	`)
 )
 
@@ -102,6 +105,8 @@ func NewCmdLogin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.
 	cmds.Flags().StringVar(&o.OIDCIssuerURL, "issuer-url", o.OIDCIssuerURL, "Experimental: Issuer url for external issuer. Required.")
 	cmds.Flags().StringVar(&o.OIDCCAFile, "oidc-certificate-authority", o.OIDCCAFile, "Experimental: The path to a certificate authority bundle to use when communicating with external OIDC issuer.")
 	cmds.Flags().BoolVar(&o.OIDCAutoOpenBrowser, "auto-open-browser", o.OIDCAutoOpenBrowser, "Experimental: Automatically open browser for login. When used with --web, defaults to true. When used with --exec-plugin for external OIDC, defaults to false.")
+
+	cmds.Flags().StringVar(&o.ProxyURL, "proxy-url", o.ProxyURL, "Proxy to use for all requests sent by oc login, and stored as proxy-url in the kubeconfig cluster entry")
 	return cmds
 }
 
@@ -229,6 +234,12 @@ func (o LoginOptions) Validate(cmd *cobra.Command, serverFlag string, args []str
 
 	if cmd.Flags().Changed("auto-open-browser") && !o.WebLogin && o.OIDCExecPluginType == "" {
 		return errors.New("--auto-open-browser can only be specified along with --web or --exec-plugin")
+	}
+
+	if len(o.ProxyURL) > 0 {
+		if _, err := parseProxyURL(o.ProxyURL); err != nil {
+			return err
+		}
 	}
 
 	return nil
