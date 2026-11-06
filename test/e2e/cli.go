@@ -621,6 +621,41 @@ var _ = g.Describe("[sig-cli] oc CLI additional tests", func() {
 
 	})
 
+	// author: tkarekar@redhat.com
+	// OCPBUGS-133414: oc set data must keep valid UTF-8 ConfigMap values in data
+	g.It("Author:tkarekar-Medium-133414-oc set data should keep UTF-8 values in data", func() {
+		oc.SetupProject()
+		project133414 := oc.Namespace()
+
+		g.By("Create configmap with UTF-8 value")
+		err := oc.Run("create").Args(
+			"configmap", "cm-133414",
+			"--from-literal=greeting=café",
+			"--from-literal=key1=value1",
+			"-n", project133414,
+		).Execute()
+		o.Expect(err).NotTo(o.HaveOccurred())
+
+		g.By("Verify greeting is stored under data")
+		greeting, err := oc.Run("get").Args("cm", "cm-133414", "-o=jsonpath={.data.greeting}", "-n", project133414).Output()
+		o.Expect(err).NotTo(o.HaveOccurred())
+		o.Expect(greeting).To(o.Equal("café"))
+
+		g.By("Update an unrelated key")
+		err = oc.Run("set").Args("data", "cm", "cm-133414", "--from-literal=key1=updated", "-n", project133414).Execute()
+		o.Expect(err).NotTo(o.HaveOccurred())
+
+		g.By("Verify UTF-8 value stayed in data")
+		greeting, err = oc.Run("get").Args("cm", "cm-133414", "-o=jsonpath={.data.greeting}", "-n", project133414).Output()
+		o.Expect(err).NotTo(o.HaveOccurred())
+		o.Expect(greeting).To(o.Equal("café"))
+
+		g.By("Verify greeting was not moved to binaryData")
+		binaryGreeting, err := oc.Run("get").Args("cm", "cm-133414", "-o=jsonpath={.binaryData.greeting}", "-n", project133414).Output()
+		o.Expect(err).NotTo(o.HaveOccurred())
+		o.Expect(binaryGreeting).To(o.BeEmpty())
+	})
+
 	// author: yinzhou@redhat.com
 	g.It("MicroShiftBoth-ROSA-OSD_CCS-ARO-Author:yinzhou-Medium-49116-oc debug should remove startupProbe when create debug pod", func() {
 		project49116 := "project49116"
