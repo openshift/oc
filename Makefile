@@ -14,7 +14,7 @@ include $(addprefix ./vendor/github.com/openshift/build-machinery-go/make/, \
 )
 
 KUBE_GIT_MINOR_VERSION := "36"
-KUBE_GIT_VERSION := "v1.36.2"
+KUBE_GIT_VERSION := "v1.36.5"
 
 STRIP_DEBUGGING_SYMBOLS ?= true
 ifeq ($(STRIP_DEBUGGING_SYMBOLS), true)
