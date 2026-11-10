@@ -10,7 +10,7 @@ import (
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 )
@@ -56,7 +56,7 @@ type configManifestBuilder struct {
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015,
 // use Docker Image Manifest v2, Schema 2, or the OCI Image Specification v1.
 // This package should not be used for purposes other than backward compatibility.
-func NewConfigManifestBuilder(bs distribution.BlobService, pk libtrust.PrivateKey, ref reference.Named, configJSON []byte) distribution.ManifestBuilder {
+func NewConfigManifestBuilder(bs distribution.BlobService, pk libtrust.PrivateKey, ref reference.Named, configJSON []byte) ManifestBuilder {
 	return &configManifestBuilder{
 		bs:         bs,
 		pk:         pk,
@@ -249,8 +249,16 @@ func (mb *configManifestBuilder) emptyTar(ctx context.Context) (digest.Digest, e
 //
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
 // Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
-func (mb *configManifestBuilder) AppendReference(d distribution.Describable) error {
-	descriptor := d.Descriptor()
+func (mb *configManifestBuilder) AppendReference(dependency any) error {
+	var descriptor distribution.Descriptor
+	switch d := dependency.(type) {
+	case distribution.Descriptor:
+		descriptor = d
+	case distribution.Describable:
+		descriptor = d.Descriptor()
+	default:
+		return fmt.Errorf("unable to add reference type %T to schema1 config builder", dependency)
+	}
 
 	if err := descriptor.Digest.Validate(); err != nil {
 		return err

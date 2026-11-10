@@ -1,155 +1,51 @@
+// Package transport re-exports the registry client transport helpers that
+// upstream moved to internal/client/transport in distribution v3. See
+// package registry/client for the rationale and the removal condition.
+//
+// DefaultTransportWrapper is deliberately not re-exported: a package-level
+// variable cannot be aliased, and a copy would not affect the transports
+// built by internal/client.
 package transport
 
 import (
+	"context"
 	"io"
 	"net/http"
-	"sync"
+
+	"github.com/distribution/distribution/v3/internal/client/transport"
 )
 
-func identityTransportWrapper(rt http.RoundTripper) http.RoundTripper {
-	return rt
-}
+// ErrWrongCodeForByteRange is returned if the client sends a request with a
+// Range header but the server returns a 2xx or 3xx code other than 206
+// Partial Content.
+var ErrWrongCodeForByteRange = transport.ErrWrongCodeForByteRange
 
-// DefaultTransportWrapper allows a user to wrap every generated transport
-var DefaultTransportWrapper = identityTransportWrapper
+// RequestModifier represents an object which will do an inplace modification
+// of an HTTP request.
+type RequestModifier = transport.RequestModifier
 
-// RequestModifier represents an object which will do an inplace
-// modification of an HTTP request.
-type RequestModifier interface {
-	ModifyRequest(*http.Request) error
-}
+// HTTPReadSeeker implements an io.ReadSeeker over an HTTP GET endpoint.
+type HTTPReadSeeker = transport.HTTPReadSeeker
 
-type headerModifier http.Header
+// ReadSeekCloser combines io.ReadSeeker with io.Closer.
+//
+// Deprecated: use [io.ReadSeekCloser].
+type ReadSeekCloser = io.ReadSeekCloser
 
-// NewHeaderRequestModifier returns a new RequestModifier which will
-// add the given headers to a request.
+// NewHeaderRequestModifier returns a new RequestModifier which will add the
+// given headers to a request.
 func NewHeaderRequestModifier(header http.Header) RequestModifier {
-	return headerModifier(header)
+	return transport.NewHeaderRequestModifier(header)
 }
 
-func (h headerModifier) ModifyRequest(req *http.Request) error {
-	for k, s := range http.Header(h) {
-		req.Header[k] = append(req.Header[k], s...)
-	}
-
-	return nil
-}
-
-// NewTransport creates a new transport which will apply modifiers to
-// the request on a RoundTrip call.
+// NewTransport creates a new transport which will apply modifiers to the
+// request on a RoundTrip call.
 func NewTransport(base http.RoundTripper, modifiers ...RequestModifier) http.RoundTripper {
-	return DefaultTransportWrapper(
-		&transport{
-			Modifiers: modifiers,
-			Base:      base,
-		})
+	return transport.NewTransport(base, modifiers...)
 }
 
-// transport is an http.RoundTripper that makes HTTP requests after
-// copying and modifying the request
-type transport struct {
-	Modifiers []RequestModifier
-	Base      http.RoundTripper
-
-	mu     sync.Mutex                      // guards modReq
-	modReq map[*http.Request]*http.Request // original -> modified
-}
-
-// RoundTrip authorizes and authenticates the request with an
-// access token. If no token exists or token is expired,
-// tries to refresh/fetch a new token.
-func (t *transport) RoundTrip(req *http.Request) (*http.Response, error) {
-	req2 := cloneRequest(req)
-	for _, modifier := range t.Modifiers {
-		if err := modifier.ModifyRequest(req2); err != nil {
-			return nil, err
-		}
-	}
-
-	t.setModReq(req, req2)
-	res, err := t.base().RoundTrip(req2)
-	if err != nil {
-		t.setModReq(req, nil)
-		return nil, err
-	}
-	res.Body = &onEOFReader{
-		rc: res.Body,
-		fn: func() { t.setModReq(req, nil) },
-	}
-	return res, nil
-}
-
-// CancelRequest cancels an in-flight request by closing its connection.
-func (t *transport) CancelRequest(req *http.Request) {
-	type canceler interface {
-		CancelRequest(*http.Request)
-	}
-	if cr, ok := t.base().(canceler); ok {
-		t.mu.Lock()
-		modReq := t.modReq[req]
-		delete(t.modReq, req)
-		t.mu.Unlock()
-		cr.CancelRequest(modReq)
-	}
-}
-
-func (t *transport) base() http.RoundTripper {
-	if t.Base != nil {
-		return t.Base
-	}
-	return http.DefaultTransport
-}
-
-func (t *transport) setModReq(orig, mod *http.Request) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
-	if t.modReq == nil {
-		t.modReq = make(map[*http.Request]*http.Request)
-	}
-	if mod == nil {
-		delete(t.modReq, orig)
-	} else {
-		t.modReq[orig] = mod
-	}
-}
-
-// cloneRequest returns a clone of the provided *http.Request.
-// The clone is a shallow copy of the struct and its Header map.
-func cloneRequest(r *http.Request) *http.Request {
-	// shallow copy of the struct
-	r2 := new(http.Request)
-	*r2 = *r
-	// deep copy of the Header
-	r2.Header = make(http.Header, len(r.Header))
-	for k, s := range r.Header {
-		r2.Header[k] = append([]string(nil), s...)
-	}
-
-	return r2
-}
-
-type onEOFReader struct {
-	rc io.ReadCloser
-	fn func()
-}
-
-func (r *onEOFReader) Read(p []byte) (n int, err error) {
-	n, err = r.rc.Read(p)
-	if err == io.EOF {
-		r.runFunc()
-	}
-	return
-}
-
-func (r *onEOFReader) Close() error {
-	err := r.rc.Close()
-	r.runFunc()
-	return err
-}
-
-func (r *onEOFReader) runFunc() {
-	if fn := r.fn; fn != nil {
-		fn()
-		r.fn = nil
-	}
+// NewHTTPReadSeeker handles reading from an HTTP endpoint using a GET
+// request. If the endpoint supports range requests, Seek is supported.
+func NewHTTPReadSeeker(ctx context.Context, client *http.Client, url string, errorHandler func(*http.Response) error) *HTTPReadSeeker {
+	return transport.NewHTTPReadSeeker(ctx, client, url, errorHandler)
 }

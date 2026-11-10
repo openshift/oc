@@ -17,7 +17,8 @@ require (
 	github.com/blang/semver v3.5.1+incompatible
 	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
-	github.com/distribution/distribution/v3 v3.0.0-20230519140516-983358f8e250
+	github.com/distribution/distribution/v3 v3.1.1
+	github.com/distribution/reference v0.6.0
 	github.com/docker/docker v28.5.2+incompatible
 	github.com/docker/go-units v0.5.0
 	github.com/docker/libtrust v0.0.0-20160708172513-aabc10ec26b7
@@ -38,9 +39,9 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/openshift-eng/openshift-tests-extension v0.0.0-20260812190735-a8b44e9f9fed
-	github.com/openshift/api v0.0.0-20261017003925-24b2699a9b32
+	github.com/openshift/api v0.0.0-20261023091600-9809689a2448
 	github.com/openshift/build-machinery-go v0.0.0-20260902143904-520f675c892b
-	github.com/openshift/client-go v0.0.0-20261001003915-dcaad1dc7fe8
+	github.com/openshift/client-go v0.0.0-20261026144452-41e357d76bc8
 	github.com/openshift/library-go v0.0.0-20261001144932-192662696fc7
 	github.com/openshift/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
@@ -105,7 +106,6 @@ require (
 	github.com/containers/ocicrypt v1.3.2 // indirect
 	github.com/cyberphone/json-canonicalization v0.0.0-20241213102144-19d51d7fe467 // indirect
 	github.com/cyphar/filepath-securejoin v0.7.0 // indirect
-	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker-credential-helpers v0.9.8 // indirect
 	github.com/docker/go-connections v0.8.1 // indirect
 	github.com/docker/go-metrics v0.0.1 // indirect
@@ -152,7 +152,8 @@ require (
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674 // indirect
-	github.com/hashicorp/golang-lru v1.0.2 // indirect
+	github.com/hashicorp/golang-lru/arc/v2 v2.0.5 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/int128/listener v1.3.0 // indirect
 	github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99 // indirect
@@ -231,3 +232,7 @@ require (
 replace github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20260819120910-d6b72669a11e
 
 replace github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
+
+replace github.com/openshift/library-go => github.com/jbpratt/library-go v0.0.0-20261104182755-559bfefa1c38
+
+replace github.com/distribution/distribution/v3 => github.com/jbpratt/openshift-docker-distribution/v3 v3.1.2-0.20261104181011-ae4a99e3cfe4
