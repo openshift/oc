@@ -313,7 +313,8 @@ func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *
 	repo distribution.Repository, toRepo distribution.Repository,
 	toManifests distribution.ManifestService, filterFn imagemanifest.FilterFunc) error {
 	// process manifestlist
-	manifestMap, oldList, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+	manifestMap, oldManifest, _, err := imagemanifest.AllManifests(ctx, from.Ref, repo)
+	oldList, _ := imagemanifest.AsManifestList(oldManifest)
 	// create new manifestlist from the old one swapping digest with the new ones
 	newDescriptors := make([]manifestlist.ManifestDescriptor, 0, len(oldList.Manifests))
 	for _, manifest := range oldList.Manifests {
@@ -344,7 +345,7 @@ func (o *AppendImageOptions) appendManifestList(ctx context.Context, createdAt *
 		}
 		newDescriptors = append(newDescriptors, manifest)
 	}
-	forPush, err := manifestlist.FromDescriptors(newDescriptors)
+	forPush, err := imagemanifest.ManifestListFromDescriptors(oldManifest, newDescriptors)
 	if err != nil {
 		return fmt.Errorf("error creating new manifestlist: %#v", err)
 	}
