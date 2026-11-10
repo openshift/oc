@@ -279,17 +279,22 @@ github.com/cyphar/filepath-securejoin/pathrs-lite/procfs
 # github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/distribution/distribution/v3 v3.0.0-20230519140516-983358f8e250
-## explicit; go 1.18
+# github.com/distribution/distribution/v3 v3.1.1 => github.com/jbpratt/openshift-docker-distribution/v3 v3.1.2-0.20261104181011-ae4a99e3cfe4
+## explicit; go 1.25.0
 github.com/distribution/distribution/v3
-github.com/distribution/distribution/v3/context
+github.com/distribution/distribution/v3/internal/client
+github.com/distribution/distribution/v3/internal/client/auth
+github.com/distribution/distribution/v3/internal/client/auth/challenge
+github.com/distribution/distribution/v3/internal/client/transport
+github.com/distribution/distribution/v3/internal/dcontext
+github.com/distribution/distribution/v3/internal/requestutil
+github.com/distribution/distribution/v3/internal/uuid
 github.com/distribution/distribution/v3/manifest
 github.com/distribution/distribution/v3/manifest/manifestlist
 github.com/distribution/distribution/v3/manifest/ocischema
 github.com/distribution/distribution/v3/manifest/schema1
 github.com/distribution/distribution/v3/manifest/schema2
 github.com/distribution/distribution/v3/metrics
-github.com/distribution/distribution/v3/reference
 github.com/distribution/distribution/v3/registry/api/errcode
 github.com/distribution/distribution/v3/registry/api/v2
 github.com/distribution/distribution/v3/registry/client
@@ -298,7 +303,6 @@ github.com/distribution/distribution/v3/registry/client/auth/challenge
 github.com/distribution/distribution/v3/registry/client/transport
 github.com/distribution/distribution/v3/registry/storage/cache
 github.com/distribution/distribution/v3/registry/storage/cache/memory
-github.com/distribution/distribution/v3/uuid
 # github.com/distribution/reference v0.6.0
 ## explicit; go 1.20
 github.com/distribution/reference
@@ -557,10 +561,13 @@ github.com/gorilla/mux
 # github.com/gorilla/websocket v1.5.4-0.20250319132907-e064f32e3674
 ## explicit; go 1.20
 github.com/gorilla/websocket
-# github.com/hashicorp/golang-lru v1.0.2
-## explicit; go 1.12
-github.com/hashicorp/golang-lru
-github.com/hashicorp/golang-lru/simplelru
+# github.com/hashicorp/golang-lru/arc/v2 v2.0.5
+## explicit; go 1.18
+github.com/hashicorp/golang-lru/arc/v2
+# github.com/hashicorp/golang-lru/v2 v2.0.7
+## explicit; go 1.18
+github.com/hashicorp/golang-lru/v2/internal
+github.com/hashicorp/golang-lru/v2/simplelru
 # github.com/inconshreveable/mousetrap v1.1.0
 ## explicit; go 1.18
 github.com/inconshreveable/mousetrap
@@ -731,7 +738,7 @@ github.com/openshift-eng/openshift-tests-extension/pkg/ginkgo
 github.com/openshift-eng/openshift-tests-extension/pkg/junit
 github.com/openshift-eng/openshift-tests-extension/pkg/util/sets
 github.com/openshift-eng/openshift-tests-extension/pkg/version
-# github.com/openshift/api v0.0.0-20261017003925-24b2699a9b32
+# github.com/openshift/api v0.0.0-20261023091600-9809689a2448
 ## explicit; go 1.26.0
 github.com/openshift/api
 github.com/openshift/api/annotations
@@ -824,7 +831,7 @@ github.com/openshift/build-machinery-go/make/targets/golang
 github.com/openshift/build-machinery-go/make/targets/openshift
 github.com/openshift/build-machinery-go/make/targets/openshift/operator
 github.com/openshift/build-machinery-go/scripts
-# github.com/openshift/client-go v0.0.0-20261001003915-dcaad1dc7fe8
+# github.com/openshift/client-go v0.0.0-20261026144452-41e357d76bc8
 ## explicit; go 1.26.0
 github.com/openshift/client-go/apps/applyconfigurations
 github.com/openshift/client-go/apps/applyconfigurations/apps/v1
@@ -943,7 +950,7 @@ github.com/openshift/client-go/user/clientset/versioned/fake
 github.com/openshift/client-go/user/clientset/versioned/scheme
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1
 github.com/openshift/client-go/user/clientset/versioned/typed/user/v1/fake
-# github.com/openshift/library-go v0.0.0-20261001144932-192662696fc7
+# github.com/openshift/library-go v0.0.0-20261001144932-192662696fc7 => github.com/jbpratt/library-go v0.0.0-20261104182755-559bfefa1c38
 ## explicit; go 1.26.0
 github.com/openshift/library-go/pkg/apiserver/jsonpatch
 github.com/openshift/library-go/pkg/apps/appsserialization
@@ -2122,3 +2129,5 @@ sigs.k8s.io/yaml/goyaml.v3
 sigs.k8s.io/yaml/kyaml
 # github.com/apcera/gssapi => github.com/openshift/gssapi v0.0.0-20260819120910-d6b72669a11e
 # github.com/onsi/ginkgo/v2 => github.com/openshift/onsi-ginkgo/v2 v2.6.1-0.20251001123353-fd5b1fb35db1
+# github.com/openshift/library-go => github.com/jbpratt/library-go v0.0.0-20261104182755-559bfefa1c38
+# github.com/distribution/distribution/v3 => github.com/jbpratt/openshift-docker-distribution/v3 v3.1.2-0.20261104181011-ae4a99e3cfe4

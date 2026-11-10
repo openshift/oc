@@ -96,7 +96,7 @@ var (
 							contactPerson("ibihim").
 							productScope(ocpSpecific).
 							enhancementPR("https://github.com/openshift/enhancements/pull/899").
-							enable(inDefault(), inOKD(), inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
+							enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
 							mustRegister()
 
 	FeatureGateBuildCSIVolumes = newFeatureGate("BuildCSIVolumes").
@@ -619,6 +619,14 @@ var (
 							enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
 							mustRegister()
 
+	FeatureGateClusterAPIOperator = newFeatureGate("ClusterAPIOperator").
+						reportProblemsToJiraComponent("Cloud Compute / Cluster API Providers").
+						contactPerson("mdbooth").
+						productScope(ocpSpecific).
+						enhancementPR("https://github.com/openshift/enhancements/pull/2149").
+						enable(inClusterProfile(SelfManaged), inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
+						mustRegister()
+
 	FeatureGateClusterMonitoringConfig = newFeatureGate("ClusterMonitoringConfig").
 						reportProblemsToJiraComponent("Monitoring").
 						contactPerson("marioferh").
@@ -687,7 +695,7 @@ var (
 					contactPerson("ardaguclu").
 					productScope(ocpSpecific).
 					enhancementPR("https://github.com/openshift/enhancements/pull/1900").
-					enable(inDevPreviewNoUpgrade(), inTechPreviewNoUpgrade()).
+					enable(inDefault(), inOKD(), inDevPreviewNoUpgrade(), inTechPreviewNoUpgrade()).
 					mustRegister()
 
 	FeatureGateCVOConfiguration = newFeatureGate("ClusterVersionOperatorConfiguration").
@@ -1105,6 +1113,7 @@ var (
 					contactPerson("sairameshv").
 					productScope(kubernetes).
 					enhancementPR("https://github.com/kubernetes/enhancements/issues/4671").
+					enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
 					mustRegister()
 
 	FeatureGatePodGroupPreemptionPolicy = newFeatureGate("PodGroupPreemptionPolicy").
@@ -1112,6 +1121,7 @@ var (
 						contactPerson("sairameshv").
 						productScope(kubernetes).
 						enhancementPR("https://github.com/kubernetes/enhancements/issues/5710").
+						enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
 						mustRegister()
 
 	FeatureGateCompositePodGroup = newFeatureGate("CompositePodGroup").
@@ -1126,6 +1136,7 @@ var (
 							contactPerson("sairameshv").
 							productScope(kubernetes).
 							enhancementPR("https://github.com/kubernetes/enhancements/issues/5732").
+							enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
 							mustRegister()
 
 	FeatureGateDRAWorkloadResourceClaims = newFeatureGate("DRAWorkloadResourceClaims").
@@ -1133,5 +1144,14 @@ var (
 						contactPerson("sairameshv").
 						productScope(kubernetes).
 						enhancementPR("https://github.com/kubernetes/enhancements/issues/5729").
+						enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
 						mustRegister()
+
+	FeatureGateStoragePathAlert = newFeatureGate("StoragePathAlert").
+					reportProblemsToJiraComponent("Storage / Operators").
+					contactPerson("jsafrane").
+					productScope(ocpSpecific).
+					enhancementPR("https://github.com/openshift/enhancements/pull/2108").
+					enable(inTechPreviewNoUpgrade(), inDevPreviewNoUpgrade()).
+					mustRegister()
 )

@@ -458,7 +458,8 @@ func (o *ImageRetriever) Images(ctx context.Context, refs map[string]imagesource
 				}
 
 				if o.ManifestListCallback != nil && manifestList != nil {
-					allManifests, err = o.ManifestListCallback(name, manifestList, allManifests)
+					list, _ := imagemanifest.AsManifestList(manifestList)
+					allManifests, err = o.ManifestListCallback(name, list, allManifests)
 					if err != nil {
 						return err
 					}
