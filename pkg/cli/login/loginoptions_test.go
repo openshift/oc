@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/MakeNowJust/heredoc"
@@ -651,6 +652,281 @@ func TestValidateAutoOpenBrowser(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateGrantType(t *testing.T) {
+	testCases := []struct {
+		name          string
+		execPlugin    string
+		oidcIssuerURL string
+		oidcClientID  string
+		grantType     string
+		callbackPort  int32
+		expectedError string
+	}{
+		{
+			name:          "valid: device-code with exec-plugin",
+			execPlugin:    "oc-oidc",
+			oidcIssuerURL: "https://example.com",
+			oidcClientID:  "test-client",
+			grantType:     "device-code",
+		},
+		{
+			name:          "valid: authorization-code with exec-plugin",
+			execPlugin:    "oc-oidc",
+			oidcIssuerURL: "https://example.com",
+			oidcClientID:  "test-client",
+			grantType:     "authorization-code",
+		},
+		{
+			name:          "valid: empty grant-type with exec-plugin defaults to auth code",
+			execPlugin:    "oc-oidc",
+			oidcIssuerURL: "https://example.com",
+			oidcClientID:  "test-client",
+			grantType:     "",
+		},
+		{
+			name:          "invalid: grant-type without exec-plugin",
+			grantType:     "device-code",
+			expectedError: "--grant-type can only be specified along with --exec-plugin",
+		},
+		{
+			name:          "invalid: unsupported grant-type",
+			execPlugin:    "oc-oidc",
+			oidcIssuerURL: "https://example.com",
+			oidcClientID:  "test-client",
+			grantType:     "client-credentials",
+			expectedError: `unsupported --grant-type "client-credentials", supported values are "authorization-code" and "device-code"`,
+		},
+		{
+			name:          "valid: callback-port with device-code is accepted with warning",
+			execPlugin:    "oc-oidc",
+			oidcIssuerURL: "https://example.com",
+			oidcClientID:  "test-client",
+			grantType:     "device-code",
+			callbackPort:  8080,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			cmd := NewCmdLogin(nil, genericiooptions.NewTestIOStreamsDiscard())
+
+			options := &LoginOptions{
+				Server:             "https://api.test.devcluster.openshift.com:6443",
+				OIDCExecPluginType: tc.execPlugin,
+				OIDCIssuerURL:      tc.oidcIssuerURL,
+				OIDCClientID:       tc.oidcClientID,
+				OIDCGrantType:      tc.grantType,
+				CallbackPort:       tc.callbackPort,
+				StartingKubeConfig: &kclientcmdapi.Config{},
+			}
+
+			err := options.Validate(cmd, "", []string{})
+			if tc.expectedError == "" {
+				if err != nil {
+					t.Errorf("expected no error, but got: %v", err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("expected error %q, but got no error", tc.expectedError)
+				} else if err.Error() != tc.expectedError {
+					t.Errorf("expected error %q, but got: %v", tc.expectedError, err)
+				}
+			}
+		})
+	}
+}
+
+func TestPrepareBuiltinExecPlugin(t *testing.T) {
+	testCases := []struct {
+		name         string
+		options      *LoginOptions
+		expectedArgs []string
+	}{
+		{
+			name: "authorization-code includes callback-address",
+			options: &LoginOptions{
+				OIDCIssuerURL: "https://issuer.example.com",
+				OIDCClientID:  "my-client",
+				CallbackPort:  8080,
+				OIDCGrantType: "authorization-code",
+				IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+			},
+			expectedArgs: []string{
+				"get-token",
+				"--issuer-url=https://issuer.example.com",
+				"--client-id=my-client",
+				"--callback-address=127.0.0.1:8080",
+			},
+		},
+		{
+			name: "device-code omits callback-address and includes grant-type",
+			options: &LoginOptions{
+				OIDCIssuerURL: "https://issuer.example.com",
+				OIDCClientID:  "device-client",
+				OIDCGrantType: "device-code",
+				IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+			},
+			expectedArgs: []string{
+				"get-token",
+				"--issuer-url=https://issuer.example.com",
+				"--client-id=device-client",
+				"--grant-type=device-code",
+			},
+		},
+		{
+			name: "empty grant-type defaults to auth code with callback-address",
+			options: &LoginOptions{
+				OIDCIssuerURL: "https://issuer.example.com",
+				OIDCClientID:  "my-client",
+				CallbackPort:  0,
+				IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+			},
+			expectedArgs: []string{
+				"get-token",
+				"--issuer-url=https://issuer.example.com",
+				"--client-id=my-client",
+				"--callback-address=127.0.0.1:0",
+			},
+		},
+		{
+			name: "device-code with extra-scopes and client-secret",
+			options: &LoginOptions{
+				OIDCIssuerURL:    "https://issuer.example.com",
+				OIDCClientID:     "device-client",
+				OIDCGrantType:    "device-code",
+				OIDCExtraScopes:  []string{"email", "profile"},
+				OIDCClientSecret: "my-secret",
+				IOStreams:        genericiooptions.NewTestIOStreamsDiscard(),
+			},
+			expectedArgs: []string{
+				"get-token",
+				"--issuer-url=https://issuer.example.com",
+				"--client-id=device-client",
+				"--grant-type=device-code",
+				"--extra-scopes=email,profile",
+				"--client-secret=my-secret",
+			},
+		},
+		{
+			name: "device-code with auto-open-browser",
+			options: &LoginOptions{
+				OIDCIssuerURL:       "https://issuer.example.com",
+				OIDCClientID:        "device-client",
+				OIDCGrantType:       "device-code",
+				OIDCAutoOpenBrowser: true,
+				IOStreams:           genericiooptions.NewTestIOStreamsDiscard(),
+			},
+			expectedArgs: []string{
+				"get-token",
+				"--issuer-url=https://issuer.example.com",
+				"--client-id=device-client",
+				"--grant-type=device-code",
+				"--auto-open-browser",
+			},
+		},
+		{
+			name: "device-code with insecure-skip-tls-verify",
+			options: &LoginOptions{
+				OIDCIssuerURL: "https://issuer.example.com",
+				OIDCClientID:  "device-client",
+				OIDCGrantType: "device-code",
+				InsecureTLS:   true,
+				IOStreams:     genericiooptions.NewTestIOStreamsDiscard(),
+			},
+			expectedArgs: []string{
+				"get-token",
+				"--issuer-url=https://issuer.example.com",
+				"--client-id=device-client",
+				"--grant-type=device-code",
+				"--insecure-skip-tls-verify",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			execConfig, err := tc.options.prepareBuiltinExecPlugin()
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if execConfig.Command != "oc" {
+				t.Errorf("expected command %q, got %q", "oc", execConfig.Command)
+			}
+
+			if diff := cmp.Diff(tc.expectedArgs, execConfig.Args); diff != "" {
+				t.Errorf("args mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+func TestCallbackPortWarningWithDeviceCode(t *testing.T) {
+	streams, _, out, _ := genericiooptions.NewTestIOStreams()
+
+	serverURL := "https://api.test.devcluster.openshift.com:6443"
+	clusterNick := "api-test-devcluster-openshift-com:6443"
+	username := "oidc-user-test:test@example.com"
+	userNick := username + "/" + clusterNick
+	contextNick := "default/" + clusterNick + "/" + username
+
+	execProvider := &kclientcmdapi.ExecConfig{
+		APIVersion:      "client.authentication.k8s.io/v1",
+		Command:         "oc",
+		Args:            []string{"get-token", "--issuer-url=https://oauth.example.com", "--client-id=test-client", "--grant-type=device-code"},
+		InstallHint:     "Please be sure that oc is defined in $PATH to be executed as credentials exec plugin",
+		InteractiveMode: kclientcmdapi.IfAvailableExecInteractiveMode,
+	}
+
+	startingConfig := &kclientcmdapi.Config{
+		Clusters: map[string]*kclientcmdapi.Cluster{
+			clusterNick: {Server: serverURL},
+		},
+		AuthInfos: map[string]*kclientcmdapi.AuthInfo{
+			userNick: {Exec: execProvider},
+		},
+		Contexts: map[string]*kclientcmdapi.Context{
+			contextNick: {
+				Cluster:   clusterNick,
+				AuthInfo:  userNick,
+				Namespace: "default",
+			},
+		},
+		CurrentContext: contextNick,
+	}
+
+	options := &LoginOptions{
+		Server:             serverURL,
+		OIDCExecPluginType: "oc-oidc",
+		OIDCIssuerURL:      "https://oauth.example.com",
+		OIDCClientID:       "test-client",
+		OIDCGrantType:      "device-code",
+		CallbackPort:       8080,
+		StartingKubeConfig: startingConfig,
+		Config: &restclient.Config{
+			Host:         serverURL,
+			ExecProvider: execProvider,
+		},
+		IOStreams: streams,
+	}
+
+	options.whoAmIFunc = func(clientConfig *restclient.Config) (*userv1.User, error) {
+		return &userv1.User{
+			ObjectMeta: metav1.ObjectMeta{Name: username},
+		}, nil
+	}
+
+	if err := options.gatherAuthInfo(); err != nil {
+		t.Fatalf("gatherAuthInfo failed: %v", err)
+	}
+
+	output := out.String()
+	expectedWarning := "WARNING: --callback-port is ignored when using --grant-type=device-code"
+	if !strings.Contains(output, expectedWarning) {
+		t.Errorf("expected output to contain %q, got: %s", expectedWarning, output)
 	}
 }
 

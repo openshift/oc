@@ -16,10 +16,18 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// Authenticator defines the basic functionality to support Auth Code Flow
-// and Token Refresh Grant Flow.
+// DeviceAuthInfo contains the information needed for the user to complete device code authorization.
+type DeviceAuthInfo struct {
+	UserCode                string
+	VerificationURI         string
+	VerificationURIComplete string
+}
+
+// Authenticator defines the basic functionality to support Auth Code Flow,
+// Device Code Flow, and Token Refresh Grant Flow.
 type Authenticator interface {
 	GetTokenByAuthCode(ctx context.Context, callbackAddress string, localServerReadyChan chan<- string) (string, string, time.Time, error)
+	GetTokenByDeviceCode(ctx context.Context, readyChan chan<- DeviceAuthInfo) (string, string, time.Time, error)
 	Refresh(ctx context.Context, refreshToken string) (string, string, time.Time, error)
 	VerifyToken(ctx context.Context, token *oauth2.Token, nonce string) (string, time.Time, error)
 }
@@ -68,6 +76,44 @@ func (c *client) GetTokenByAuthCode(ctx context.Context, callbackAddress string,
 		return "", "", time.Time{}, fmt.Errorf("oauth2 error: %w", err)
 	}
 	idToken, expiry, err := c.VerifyToken(ctx, token, nonce)
+	return idToken, token.RefreshToken, expiry, err
+}
+
+// GetTokenByDeviceCode performs the RFC 8628 device authorization grant flow.
+// It sends a DeviceAuthInfo to readyChan so the caller can display the verification
+// URI and user code, then polls the token endpoint until the user completes authorization.
+// For confidential clients, the client secret is included in the device authorization request.
+func (c *client) GetTokenByDeviceCode(ctx context.Context, readyChan chan<- DeviceAuthInfo) (string, string, time.Time, error) {
+	if c.httpClient != nil {
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
+	}
+
+	var deviceAuthOpts []oauth2.AuthCodeOption
+	if c.oauth2Config.ClientSecret != "" {
+		deviceAuthOpts = append(deviceAuthOpts, oauth2.SetAuthURLParam("client_secret", c.oauth2Config.ClientSecret))
+	}
+
+	deviceAuth, err := c.oauth2Config.DeviceAuth(ctx, deviceAuthOpts...)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("device authorization request error: %w", err)
+	}
+
+	select {
+	case readyChan <- DeviceAuthInfo{
+		UserCode:                deviceAuth.UserCode,
+		VerificationURI:         deviceAuth.VerificationURI,
+		VerificationURIComplete: deviceAuth.VerificationURIComplete,
+	}:
+	case <-ctx.Done():
+		return "", "", time.Time{}, ctx.Err()
+	}
+
+	token, err := c.oauth2Config.DeviceAccessToken(ctx, deviceAuth)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("device code token exchange error: %w", err)
+	}
+
+	idToken, expiry, err := c.VerifyToken(ctx, token, "")
 	return idToken, token.RefreshToken, expiry, err
 }
 
