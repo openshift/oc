@@ -31,17 +31,14 @@ func NewCommandTop(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobr
 		Run:   kcmdutil.DefaultSubCommandRun(streams.ErrOut),
 	}
 
-	cmdTopNode := cmdutil.ReplaceCommandName("kubectl", "oc adm", top.NewCmdTopNode(f, nil, streams))
 	cmdTopPod := cmdutil.ReplaceCommandName("kubectl", "oc adm", top.NewCmdTopPod(f, nil, streams))
 
 	cmds.AddCommand(NewCmdTopImages(f, streams))
 	cmds.AddCommand(NewCmdTopImageStreams(f, streams))
 	cmds.AddCommand(toppvc.NewCmdTopPersistentVolumeClaims(f, streams))
-	cmdTopNode.Long = templates.LongDesc(cmdTopNode.Long)
-	cmdTopNode.Example = templates.Examples(cmdTopNode.Example)
+	cmds.AddCommand(NewCmdTopNode(f, streams))
 	cmdTopPod.Long = templates.LongDesc(cmdTopPod.Long)
 	cmdTopPod.Example = templates.Examples(cmdTopPod.Example)
-	cmds.AddCommand(cmdTopNode)
 	cmds.AddCommand(cmdTopPod)
 	return cmds
 }
