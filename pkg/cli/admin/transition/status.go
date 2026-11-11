@@ -2,6 +2,7 @@ package transition
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -10,6 +11,7 @@ import (
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	metav1helpers "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -111,6 +113,41 @@ func (o *statusOptions) run(ctx context.Context) error {
 	infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, infrastructureResourceName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get Infrastructure resource: %w", err)
+	}
+
+	if *o.printFlags.OutputFormat != "" {
+		printer, err := o.printFlags.ToPrinter()
+		if err != nil {
+			return err
+		}
+
+		report := struct {
+			Metadata struct {
+				Generation int64 `json:"generation"`
+			} `json:"metadata"`
+			Spec struct {
+				ControlPlaneTopology   configv1.TopologyMode `json:"controlPlaneTopology"`
+				InfrastructureTopology configv1.TopologyMode `json:"infrastructureTopology"`
+			} `json:"spec"`
+			Status struct {
+				ControlPlaneTopology   configv1.TopologyMode `json:"controlPlaneTopology"`
+				InfrastructureTopology configv1.TopologyMode `json:"infrastructureTopology"`
+				configv1.TopologyTransitionStatus
+			} `json:"status"`
+		}{}
+		report.Metadata.Generation = infra.Generation
+		report.Spec.ControlPlaneTopology = infra.Spec.ControlPlaneTopology
+		report.Spec.InfrastructureTopology = infra.Spec.InfrastructureTopology
+		report.Status.ControlPlaneTopology = infra.Status.ControlPlaneTopology
+		report.Status.InfrastructureTopology = infra.Status.InfrastructureTopology
+		report.Status.TopologyTransitionStatus = infra.Status.TopologyTransitionStatus
+
+		data, err := json.Marshal(report)
+		if err != nil {
+			return fmt.Errorf("failed to encode topology transition status: %w", err)
+		}
+
+		return printer.PrintObj(&runtime.Unknown{Raw: data}, o.Out)
 	}
 
 	if err := o.printTopologyStatus(infra); err != nil {
