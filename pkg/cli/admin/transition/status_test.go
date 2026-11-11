@@ -112,9 +112,9 @@ func TestStatusStructuredOutput(t *testing.T) {
 			InfrastructureTopology configv1.TopologyMode `json:"infrastructureTopology"`
 		} `json:"spec"`
 		Status struct {
-			ControlPlaneTopology   configv1.TopologyMode `json:"controlPlaneTopology"`
-			InfrastructureTopology configv1.TopologyMode `json:"infrastructureTopology"`
-			configv1.TopologyTransitionStatus
+			ControlPlaneTopology     configv1.TopologyMode             `json:"controlPlaneTopology"`
+			InfrastructureTopology   configv1.TopologyMode             `json:"infrastructureTopology"`
+			TopologyTransitionStatus configv1.TopologyTransitionStatus `json:"topologyTransitionStatus"`
 		} `json:"status"`
 	}
 
