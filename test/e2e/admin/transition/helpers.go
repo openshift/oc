@@ -72,6 +72,7 @@ func (f *fakeAPIServer) handleInfrastructure(w http.ResponseWriter, r *http.Requ
 
 	switch r.Method {
 	case http.MethodGet:
+		f.advanceTransition()
 		f.writeInfra(w)
 	case http.MethodPatch:
 		body, err := io.ReadAll(r.Body)
@@ -87,13 +88,18 @@ func (f *fakeAPIServer) handleInfrastructure(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// writeInfra serves the Infrastructure, advancing the transition state machine
-// on every GET once a patch has been received.
-func (f *fakeAPIServer) writeInfra(w http.ResponseWriter) {
+// advanceTransition advances the state machine one GET at a time once a patch
+// has been received: the first getsBeforeCompletion GETs report the transition
+// in progress, later ones completed.
+func (f *fakeAPIServer) advanceTransition() {
 	if len(f.patchBodies) > 0 && f.getsSincePatch >= getsBeforeCompletion {
 		f.completeTransition()
 	}
 	f.getsSincePatch++
+}
+
+// writeInfra serves the Infrastructure as JSON.
+func (f *fakeAPIServer) writeInfra(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(f.infra); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
