@@ -509,7 +509,7 @@ func TestRequestToken(t *testing.T) {
 					},
 				},
 				Handler: tc.Handler,
-				OsinConfig: &oauth2.Config{
+				OAuthConfig: &oauth2.Config{
 					ClientID: "openshift-challenging-client",
 					Endpoint: oauth2.Endpoint{
 						AuthURL:  oauthdiscovery.OpenShiftOAuthAuthorizeURL(s.URL),
@@ -539,7 +539,7 @@ func TestRequestToken(t *testing.T) {
 	}
 }
 
-func TestSetDefaultOsinConfig(t *testing.T) {
+func TestSetDefaultOAuthConfig(t *testing.T) {
 	noHostChange := func(host string) string { return host }
 	for _, tc := range []struct {
 		name        string
@@ -708,8 +708,8 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 			ClientConfig: &restclient.Config{Host: tc.hostWrapper(s.URL)},
 			TokenFlow:    tc.tokenFlow,
 		}
-		if err := opts.SetDefaultOauthConfig("openshift-challenging-client", nil); err != nil {
-			t.Errorf("%s: unexpected SetDefaultOauthConfig error: %v", tc.name, err)
+		if err := opts.SetDefaultOAuthConfig("openshift-challenging-client", nil); err != nil {
+			t.Errorf("%s: unexpected SetDefaultOAuthConfig error: %v", tc.name, err)
 			continue
 		}
 
@@ -717,7 +717,7 @@ func TestSetDefaultOsinConfig(t *testing.T) {
 		// longer exposes PKCE on the config (the code verifier is tracked
 		// internally and the challenge is derived per-request), and oauth2.Config
 		// carries an unexported auth-style cache, so a deep-equal is not usable.
-		got := opts.OsinConfig
+		got := opts.OAuthConfig
 		if got.ClientID != tc.expectedConfig.ClientID ||
 			got.Endpoint.AuthURL != tc.expectedConfig.Endpoint.AuthURL ||
 			got.Endpoint.TokenURL != tc.expectedConfig.Endpoint.TokenURL ||
