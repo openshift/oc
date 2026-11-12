@@ -2,7 +2,7 @@ module github.com/openshift/oc
 
 go 1.26.0
 
-replace github.com/openshift/library-go => github.com/dusk125/library-go v0.0.0-20260915143008-8983a61e7adc
+replace github.com/openshift/library-go => github.com/dusk125/library-go v0.0.0-20261112150539-14ee82f5a1a9
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
@@ -40,11 +40,10 @@ require (
 	github.com/opencontainers/go-digest v1.0.0
 	github.com/opencontainers/image-spec v1.1.1
 	github.com/openshift-eng/openshift-tests-extension v0.0.0-20260812190735-a8b44e9f9fed
-	github.com/openshift/api v0.0.0-20261017003925-24b2699a9b32
+	github.com/openshift/api v0.0.0-20261023091600-9809689a2448
 	github.com/openshift/build-machinery-go v0.0.0-20260902143904-520f675c892b
-	github.com/openshift/client-go v0.0.0-20261001003915-dcaad1dc7fe8
+	github.com/openshift/client-go v0.0.0-20261026144452-41e357d76bc8
 	github.com/openshift/library-go v0.0.0-20261001144932-192662696fc7
-	github.com/openshift/osincli v0.0.0-20160924135400-fababb0555f2
 	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/prometheus/client_golang v1.24.0
 	github.com/russross/blackfriday v1.6.0

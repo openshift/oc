@@ -1,6 +1,7 @@
 package tokenrequest
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -8,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net"
 	"net/http"
 	"net/url"
@@ -59,7 +61,7 @@ const (
 type RequestTokenOptions struct {
 	ClientConfig *restclient.Config
 	Handler      challengehandlers.ChallengeHandler
-	OsinConfig   *oauth2.Config // TODO rename to OauthConfig?
+	OAuthConfig  *oauth2.Config
 	Issuer       string
 	TokenFlow    bool
 
@@ -117,7 +119,7 @@ func NewRequestTokenOptions(
 
 // WithChallengeHandlers sets up the RequestTokenOptions with the provided challengeHandlers to be
 // used in the OAuth code flow.
-// If RequestTokenOptions.OAuthConfig is nil, it will be defaulted using SetDefaultOsinConfig.
+// If RequestTokenOptions.OAuthConfig is nil, it will be defaulted using SetDefaultOAuthConfig.
 // The caller is responsible for setting up the entire OAuthConfig if the value is not nil.
 func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challengehandlers.ChallengeHandler) (*RequestTokenOptions, error) {
 	var handler challengehandlers.ChallengeHandler
@@ -128,8 +130,8 @@ func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challen
 	}
 	o.Handler = handler
 
-	if o.OsinConfig == nil {
-		if err := o.SetDefaultOauthConfig(openShiftCLIClientID, nil); err != nil {
+	if o.OAuthConfig == nil {
+		if err := o.SetDefaultOAuthConfig(openShiftCLIClientID, nil); err != nil {
 			return nil, err
 		}
 	}
@@ -139,7 +141,7 @@ func (o *RequestTokenOptions) WithChallengeHandlers(challengeHandlers ...challen
 
 // WithLocalCallback sets up the RequestTokenOptions with an AuthorizationURLHanderFunc and an
 // unstarted local callback server on the specified port.
-// If RequestTokenOptions.OAuthConfig is nil, it will be defaulted using SetDefaultOsinConfig.
+// If RequestTokenOptions.OAuthConfig is nil, it will be defaulted using SetDefaultOAuthConfig.
 // The caller is responsible for setting up the entire OAuthConfig if the value is not nil.
 func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLHandlerFunc, localCallbackPort int) (*RequestTokenOptions, error) {
 	var err error
@@ -149,9 +151,9 @@ func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLH
 		return nil, err
 	}
 
-	if o.OsinConfig == nil {
+	if o.OAuthConfig == nil {
 		redirectUrl := fmt.Sprintf("http://%s/callback", o.LocalCallbackServer.ListenAddr())
-		if err := o.SetDefaultOauthConfig(openShiftCLIBrowserClientID, &redirectUrl); err != nil {
+		if err := o.SetDefaultOAuthConfig(openShiftCLIBrowserClientID, &redirectUrl); err != nil {
 			return nil, err
 		}
 	}
@@ -162,16 +164,16 @@ func (o *RequestTokenOptions) WithLocalCallback(handleAuthzURL AuthorizationURLH
 // SetDefaultOsinConfig overwrites RequestTokenOptions.OAuthConfig with the default CLI
 // OAuth client and PKCE support if the server supports S256 / a code flow is being used
 //
-// Deprecated: Use RequestTokenOptions.SetDefaultOauthConfig
+// Deprecated: Use RequestTokenOptions.SetDefaultOAuthConfig
 func (o *RequestTokenOptions) SetDefaultOsinConfig(clientID string, redirectURL *string) error {
-	return o.SetDefaultOauthConfig(clientID, redirectURL)
+	return o.SetDefaultOAuthConfig(clientID, redirectURL)
 }
 
-// SetDefaultOauthConfig overwrites RequestTokenOptions.OAuthConfig with the default CLI
+// SetDefaultOAuthConfig overwrites RequestTokenOptions.OAuthConfig with the default CLI
 // OAuth client and PKCE support if the server supports S256 / a code flow is being used
-func (o *RequestTokenOptions) SetDefaultOauthConfig(clientID string, redirectURL *string) error {
-	if o.OsinConfig != nil {
-		return fmt.Errorf("oauth config is already set to: %#v", *o.OsinConfig)
+func (o *RequestTokenOptions) SetDefaultOAuthConfig(clientID string, redirectURL *string) error {
+	if o.OAuthConfig != nil {
+		return fmt.Errorf("oauth config is already set to: %#v", *o.OAuthConfig)
 	}
 
 	// get the OAuth metadata directly from the api server
@@ -219,7 +221,7 @@ func (o *RequestTokenOptions) SetDefaultOauthConfig(clientID string, redirectURL
 		o.codeVerifier = oauth2.GenerateVerifier()
 	}
 
-	o.OsinConfig = config
+	o.OAuthConfig = config
 	o.Issuer = metadata.Issuer
 	return nil
 }
@@ -303,7 +305,7 @@ func (o *RequestTokenOptions) requestTokenWithChallengeHandlers() (string, error
 							Causes: []metav1.StatusCause{
 								{Message: fmt.Sprintf(
 									"You must obtain an API token by visiting %s/request\n\n%s",
-									o.OsinConfig.Endpoint.TokenURL,
+									o.OAuthConfig.Endpoint.TokenURL,
 									`Alternatively, use "oc login --web" to login via your browser. See "oc login --help" for more information.`,
 								)},
 							},
@@ -450,13 +452,66 @@ func (o *RequestTokenOptions) authorizeURL() (*url.URL, error) {
 	}
 
 	// an empty state preserves the historical behavior of not sending a state parameter
-	return url.Parse(o.OsinConfig.AuthCodeURL("", opts...))
+	return url.Parse(o.OAuthConfig.AuthCodeURL("", opts...))
 }
 
 // oauthHTTPContext returns a context carrying the HTTP client that
 // golang.org/x/oauth2 should use for the token exchange.
 func oauthHTTPContext(rt http.RoundTripper) context.Context {
-	return context.WithValue(context.Background(), oauth2.HTTPClient, &http.Client{Transport: rt})
+	return context.WithValue(context.Background(), oauth2.HTTPClient, &http.Client{Transport: &tokenExchangeTransport{delegate: rt}})
+}
+
+// tokenExchangeTransport restores two behaviors of the previous osincli-based
+// token exchange that golang.org/x/oauth2 does not provide:
+//
+//   - it advertises "Accept: application/json" on the token request, and
+//   - it treats a token response whose body is JSON but is labeled "text/plain"
+//     as JSON.
+//
+// osincli always sent "Accept: application/json" and always parsed the token
+// response as JSON regardless of the advertised Content-Type. golang.org/x/oauth2
+// sends no Accept header and selects its parser from the response Content-Type
+// (parsing "text/plain" as a URL-encoded form). Preserving the old behavior keeps
+// the migration compatible with token endpoints that relied on it.
+// maxTokenResponseBytes caps how much of the token response we buffer when
+// re-labeling a text/plain body. It matches the 1 MiB limit that
+// golang.org/x/oauth2 applies when reading the token response, so our read passes
+// through exactly the bytes x/oauth2 would otherwise have read itself.
+const maxTokenResponseBytes = 1024 * 1024 // 1 MiB
+
+type tokenExchangeTransport struct {
+	delegate http.RoundTripper
+}
+
+func (t *tokenExchangeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	req = req.Clone(req.Context())
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := t.delegate.RoundTrip(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// golang.org/x/oauth2 parses a "text/plain" response as a URL-encoded form.
+	// osincli instead always decoded the token response as JSON regardless of the
+	// Content-Type, so if a text/plain body is valid JSON, relabel it as JSON to
+	// preserve that behavior. A body that is not valid JSON is left untouched so
+	// x/oauth2's native form handling still applies.
+	mediaType, _, _ := mime.ParseMediaType(resp.Header.Get("Content-Type"))
+	if mediaType != "text/plain" {
+		return resp, nil
+	}
+
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxTokenResponseBytes))
+	resp.Body.Close()
+	if err != nil {
+		return nil, err
+	}
+	if json.Valid(body) {
+		resp.Header.Set("Content-Type", "application/json")
+	}
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	return resp, nil
 }
 
 // oauthTokenFlow attempts to extract an OAuth token from location's fragment's access_token value.
@@ -500,7 +555,13 @@ func (o *RequestTokenOptions) oauthCodeFlow(ctx context.Context, location string
 	}
 
 	if err := req.ParseForm(); err != nil {
-		return "", err
+		// oauthCodeFlow may be handed an arbitrary redirect (e.g. from an
+		// authenticating proxy) that is not part of the OAuth flow. A query we
+		// cannot parse is treated as "not the OAuth redirect" so the caller keeps
+		// following redirects, matching the pre-migration behavior that ignored
+		// this parse error.
+		klog.V(4).Infof("ignoring redirect with unparseable query %q: %v", location, err)
+		return "", nil
 	}
 	if oauthErr := oauthErrFromValues(req.Form); oauthErr != nil {
 		return "", oauthErr
@@ -538,7 +599,7 @@ func (o *RequestTokenOptions) exchangeCode(ctx context.Context, code string) (st
 		opts = append(opts, oauth2.VerifierOption(o.codeVerifier))
 	}
 
-	token, err := o.OsinConfig.Exchange(ctx, code, opts...)
+	token, err := o.OAuthConfig.Exchange(ctx, code, opts...)
 	if err != nil {
 		return "", oauth2ToError(err)
 	}
