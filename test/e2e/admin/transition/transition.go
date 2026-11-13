@@ -3,6 +3,7 @@ package transition
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 
 	g "github.com/onsi/ginkgo/v2"
 	o "github.com/onsi/gomega"
@@ -27,11 +28,15 @@ var _ = g.Describe("[sig-cli] oc adm transition", g.Label("topology-transition")
 	)
 
 	g.BeforeEach(func() {
+		// Resolve `oc` from PATH up front so a missing binary fails here with
+		// a clear message instead of an obscure exec error in every spec.
+		ocPath, err := exec.LookPath("oc")
+		o.Expect(err).NotTo(o.HaveOccurred(), "oc not found on PATH: build it with 'make oc' and export PATH=$PWD:$PATH so the suite exercises the built binary")
 		fakeServer = newFakeAPIServer()
 		path, err := writeKubeconfig(fakeServer.URL())
 		o.Expect(err).NotTo(o.HaveOccurred())
 		kubeconfigPath = path
-		oc = e2e.NewCLI("oc", kubeconfigPath).EnvVar("OC_ENABLE_CMD_TRANSITION_TOPOLOGY", "true")
+		oc = e2e.NewCLI(ocPath, kubeconfigPath).EnvVar("OC_ENABLE_CMD_TRANSITION_TOPOLOGY", "true")
 	})
 
 	g.AfterEach(func() {
