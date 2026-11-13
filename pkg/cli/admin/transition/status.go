@@ -2,6 +2,7 @@ package transition
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -10,6 +11,7 @@ import (
 	configv1client "github.com/openshift/client-go/config/clientset/versioned"
 	metav1helpers "k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/util/templates"
@@ -23,26 +25,43 @@ var (
 		Displays the current control plane and infrastructure topology status
 		(both spec and status), the topology transition lifecycle conditions,
 		and available transitions with their evaluations.
+
+		Use -o json or -o yaml to print a machine-readable report with the
+		Infrastructure metadata.generation, the spec and status topologies, and
+		the raw topologyTransitionStatus report, including conditions and
+		transitions. Before using transition evaluations, consumers must check
+		that TopologyTransitionsEvaluated is True and its observedGeneration
+		matches metadata.generation.
 	`)
 
 	statusExample = templates.Examples(`
 		# Monitor transition progress
 		oc adm transition status
+
+		# Print the transition status report as JSON or YAML
+		oc adm transition status -o json
+		oc adm transition status -o yaml
 	`)
 )
 
 // statusOptions holds options for the status subcommand
 type statusOptions struct {
 	configClient configv1client.Interface
-
+	printFlags   *genericclioptions.PrintFlags
 	genericclioptions.IOStreams
+}
+
+// newStatusOptions creates a new statusOptions with default values
+func newStatusOptions(streams genericclioptions.IOStreams) *statusOptions {
+	return &statusOptions{
+		IOStreams:  streams,
+		printFlags: genericclioptions.NewPrintFlags(""),
+	}
 }
 
 // newCmdStatus creates the status subcommand
 func newCmdStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobra.Command {
-	o := &statusOptions{
-		IOStreams: streams,
-	}
+	o := newStatusOptions(streams)
 
 	cmd := &cobra.Command{
 		Use:     "status",
@@ -51,9 +70,12 @@ func newCmdStatus(f kcmdutil.Factory, streams genericclioptions.IOStreams) *cobr
 		Example: statusExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.complete(f, cmd, args))
+			kcmdutil.CheckErr(o.validate())
 			kcmdutil.CheckErr(o.run(cmd.Context()))
 		},
 	}
+
+	cmd.Flags().StringVarP(o.printFlags.OutputFormat, "output", "o", "", "Output format: json or yaml")
 
 	return cmd
 }
@@ -73,6 +95,16 @@ func (o *statusOptions) complete(f kcmdutil.Factory, cmd *cobra.Command, args []
 	return nil
 }
 
+// validate validates the status command options
+func (o *statusOptions) validate() error {
+	if format := *o.printFlags.OutputFormat; format != "" {
+		if format != "json" && format != "yaml" {
+			return fmt.Errorf("unsupported output format %q: must be json or yaml", format)
+		}
+	}
+	return nil
+}
+
 // run executes the status subcommand
 func (o *statusOptions) run(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, apiRequestTimeout)
@@ -81,6 +113,41 @@ func (o *statusOptions) run(ctx context.Context) error {
 	infra, err := o.configClient.ConfigV1().Infrastructures().Get(ctx, infrastructureResourceName, metav1.GetOptions{})
 	if err != nil {
 		return fmt.Errorf("failed to get Infrastructure resource: %w", err)
+	}
+
+	if *o.printFlags.OutputFormat != "" {
+		printer, err := o.printFlags.ToPrinter()
+		if err != nil {
+			return err
+		}
+
+		report := struct {
+			Metadata struct {
+				Generation int64 `json:"generation"`
+			} `json:"metadata"`
+			Spec struct {
+				ControlPlaneTopology   configv1.TopologyMode `json:"controlPlaneTopology"`
+				InfrastructureTopology configv1.TopologyMode `json:"infrastructureTopology"`
+			} `json:"spec"`
+			Status struct {
+				ControlPlaneTopology     configv1.TopologyMode             `json:"controlPlaneTopology"`
+				InfrastructureTopology   configv1.TopologyMode             `json:"infrastructureTopology"`
+				TopologyTransitionStatus configv1.TopologyTransitionStatus `json:"topologyTransitionStatus"`
+			} `json:"status"`
+		}{}
+		report.Metadata.Generation = infra.Generation
+		report.Spec.ControlPlaneTopology = infra.Spec.ControlPlaneTopology
+		report.Spec.InfrastructureTopology = infra.Spec.InfrastructureTopology
+		report.Status.ControlPlaneTopology = infra.Status.ControlPlaneTopology
+		report.Status.InfrastructureTopology = infra.Status.InfrastructureTopology
+		report.Status.TopologyTransitionStatus = infra.Status.TopologyTransitionStatus
+
+		data, err := json.Marshal(report)
+		if err != nil {
+			return fmt.Errorf("failed to encode topology transition status: %w", err)
+		}
+
+		return printer.PrintObj(&runtime.Unknown{Raw: data}, o.Out)
 	}
 
 	if err := o.printTopologyStatus(infra); err != nil {

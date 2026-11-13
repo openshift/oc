@@ -1037,10 +1037,8 @@ func TestStatusCommand(t *testing.T) {
 
 			configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-			o := &statusOptions{
-				IOStreams:    streams,
-				configClient: configClient,
-			}
+			o := newStatusOptions(streams)
+			o.configClient = configClient
 
 			err := o.run(context.Background())
 			if err != nil {
@@ -1230,10 +1228,8 @@ func TestStatusCommand_WithTransitions(t *testing.T) {
 
 			configClient := fakeconfigclient.NewSimpleClientset(infra)
 
-			o := &statusOptions{
-				IOStreams:    streams,
-				configClient: configClient,
-			}
+			o := newStatusOptions(streams)
+			o.configClient = configClient
 
 			err := o.run(context.Background())
 			if err != nil {
@@ -1370,7 +1366,8 @@ func TestStatusCommandErrors(t *testing.T) {
 				})
 			}
 
-			o := &statusOptions{IOStreams: streams, configClient: configClient}
+			o := newStatusOptions(streams)
+			o.configClient = configClient
 			err := o.run(context.Background())
 			if err == nil {
 				t.Fatal("run() error = nil, want error")
