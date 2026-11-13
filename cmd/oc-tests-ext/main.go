@@ -10,6 +10,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/spf13/cobra"
 	"k8s.io/component-base/cli"
@@ -84,6 +85,20 @@ func prepareOperatorTestsRegistry() (*oteextension.Registry, error) {
 		Parallelism: 1,
 		Qualifiers: []string{
 			`!name.contains("[Serial]")`,
+		},
+	})
+
+	// The following suite runs the hermetic oc adm transition tests. They exec
+	// the real oc binary against a scripted fake API server, so they need no
+	// cluster; they also run in the conformance suites via their [Serial] tag.
+	topologyTransitionTestTimeout := 10 * time.Minute
+	extension.AddSuite(oteextension.Suite{
+		Name:        "openshift/oc/topology-transitions",
+		Description: "Hermetic oc adm transition tests; run against a scripted API server, no cluster required",
+		Parallelism: 1,
+		TestTimeout: &topologyTransitionTestTimeout,
+		Qualifiers: []string{
+			`name.contains("[TopologyTransition]")`,
 		},
 	})
 

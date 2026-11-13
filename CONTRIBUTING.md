@@ -191,6 +191,9 @@ make build
 # Run the parallel suite
 ./oc-tests-ext run-suite openshift/oc/conformance/parallel
 
+# Run the hermetic topology transition suite (no cluster required)
+PATH=$PWD:$PATH ./oc-tests-ext run-suite openshift/oc/topology-transitions
+
 # Run a specific test
 ./oc-tests-ext run-test "test-name"
 
