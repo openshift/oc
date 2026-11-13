@@ -20,7 +20,7 @@ import (
 // (helpers.go), so they need no cluster and stay deterministic: they test the
 // CLI, not the cluster-side transition, which origin's topology-transitions
 // suite covers against a live cluster.
-var _ = g.Describe("[sig-cli] oc adm transition", g.Label("topology-transition"), func() {
+var _ = g.Describe("oc adm transition", g.Label("topology-transition"), func() {
 	var (
 		fakeServer     *fakeAPIServer
 		kubeconfigPath string
