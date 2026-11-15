@@ -343,7 +343,7 @@ func (o *options) Run(ctx context.Context) error {
 	} else {
 		// Unmarshal the JSON data into the struct
 		if err := json.Unmarshal(alertBytes, &alertData); err != nil {
-			fmt.Println("Ignoring alerts in 'Update Health'. Error unmarshaling alerts: %w", err)
+			fmt.Fprintf(o.ErrOut, "Ignoring alerts in 'Update Health'. Error unmarshaling alerts: %v\n", err)
 		}
 		updateInsights = append(updateInsights, parseAlertDataToInsights(alertData, startedAt)...)
 	}
