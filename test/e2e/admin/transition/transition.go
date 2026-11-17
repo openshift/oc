@@ -40,11 +40,16 @@ var _ = g.Describe("oc adm transition", g.Label("topology-transition"), func() {
 	})
 
 	g.AfterEach(func() {
-		fakeServer.Close()
+		// fakeServer is nil when BeforeEach failed before creating it (e.g. oc
+		// not found on PATH); Ginkgo runs AfterEach anyway, so guard the close
+		// to avoid a nil-receiver panic masking the setup failure.
+		if fakeServer != nil {
+			fakeServer.Close()
+		}
 		os.Remove(kubeconfigPath)
 	})
 
-	g.It("Author:jcope-Medium-OCPEDGE-2953-discovery lists available topology transitions [TopologyTransition][Serial]", func() {
+	g.It("discovery lists available topology transitions [TopologyTransition][Serial][Skipped:MicroShift]", func() {
 		g.By("reading the discovery output")
 		out, err := oc.Run("adm").Args("transition", "topology").WithoutNamespace().Output()
 		o.Expect(err).NotTo(o.HaveOccurred(), "output: %s", out)
@@ -77,7 +82,7 @@ var _ = g.Describe("oc adm transition", g.Label("topology-transition"), func() {
 		o.Expect(fakeServer.PatchBodies()).To(o.BeEmpty())
 	})
 
-	g.It("Author:jcope-Medium-OCPEDGE-2953-dry-run previews an available topology transition [TopologyTransition][Serial]", func() {
+	g.It("dry-run previews an available topology transition [TopologyTransition][Serial][Skipped:MicroShift]", func() {
 		g.By("previewing the transition without --confirm")
 		out, err := oc.Run("adm").Args("transition", "topology", "--control-plane=HighlyAvailable", "--infrastructure=HighlyAvailable").WithoutNamespace().Output()
 		o.Expect(err).NotTo(o.HaveOccurred(), "output: %s", out)
@@ -90,7 +95,7 @@ var _ = g.Describe("oc adm transition", g.Label("topology-transition"), func() {
 		o.Expect(fakeServer.PatchBodies()).To(o.BeEmpty())
 	})
 
-	g.It("Author:jcope-High-OCPEDGE-2953-initiate completes a topology transition through the status-read path [TopologyTransition][Serial]", func() {
+	g.It("initiate completes a topology transition through the status-read path [TopologyTransition][Serial][Skipped:MicroShift]", func() {
 		g.By("initiating the transition")
 		out, err := oc.Run("adm").Args("transition", "topology", "--control-plane=HighlyAvailable", "--infrastructure=HighlyAvailable", "--confirm").WithoutNamespace().Output()
 		o.Expect(err).NotTo(o.HaveOccurred(), "output: %s", out)
