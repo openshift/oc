@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
 	registryclient "github.com/distribution/distribution/v3/registry/client"
+	"github.com/distribution/reference"
 )
 
 func NewDryRun(ref TypedImageReference) (distribution.Repository, error) {

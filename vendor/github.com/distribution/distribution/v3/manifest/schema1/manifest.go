@@ -40,7 +40,7 @@ const MediaTypeManifestLayer = "application/vnd.docker.container.image.rootfs.di
 //
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
 // Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
-var SchemaVersion = manifest.Versioned{
+var SchemaVersion = manifest.Versioned{ //nolint:staticcheck // schema1 consumers construct Manifest with manifest.Versioned.
 	SchemaVersion: 1,
 }
 

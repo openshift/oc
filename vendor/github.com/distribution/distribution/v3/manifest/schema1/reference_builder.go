@@ -7,7 +7,7 @@ import (
 
 	"github.com/distribution/distribution/v3"
 	"github.com/distribution/distribution/v3/manifest"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 )
@@ -24,7 +24,7 @@ type referenceManifestBuilder struct {
 //
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
 // Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
-func NewReferenceManifestBuilder(pk libtrust.PrivateKey, ref reference.Named, architecture string) distribution.ManifestBuilder {
+func NewReferenceManifestBuilder(pk libtrust.PrivateKey, ref reference.Named, architecture string) ManifestBuilder {
 	tag := ""
 	if tagged, isTagged := ref.(reference.Tagged); isTagged {
 		tag = tagged.Tag()
@@ -61,8 +61,8 @@ func (mb *referenceManifestBuilder) Build(ctx context.Context) (distribution.Man
 //
 // Deprecated: Docker Image Manifest v2, Schema 1 is deprecated since 2015.
 // Use Docker Image Manifest v2, Schema 2, or the OCI Image Specification.
-func (mb *referenceManifestBuilder) AppendReference(d distribution.Describable) error {
-	r, ok := d.(Reference)
+func (mb *referenceManifestBuilder) AppendReference(dependency any) error {
+	r, ok := dependency.(Reference)
 	if !ok {
 		return fmt.Errorf("unable to add non-reference type to v1 builder")
 	}
