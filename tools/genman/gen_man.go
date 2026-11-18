@@ -58,15 +58,21 @@ func genCmdMan(cmdName string, cmd *cobra.Command) {
 		fmt.Fprintf(os.Stderr, "failed to get output directory: %v\n", err)
 		os.Exit(1)
 	}
-	outDir = outDir + "/"
+	// Confine all generated files to outDir so that no file name can escape it.
+	root, err := os.OpenRoot(outDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to open output directory: %v\n", err)
+		os.Exit(1)
+	}
+	defer root.Close()
 
 	// Set environment variables used by openshift so the output is consistent,
 	// regardless of where we run.
 	os.Setenv("HOME", "/home/username")
 	// TODO os.Stdin should really be something like io.Discard, but a Reader
-	genMarkdown(cmd, "", outDir)
+	genMarkdown(cmd, "", root)
 	for _, c := range cmd.Commands() {
-		genMarkdown(c, cmdName, outDir)
+		genMarkdown(c, cmdName, root)
 	}
 }
 
@@ -131,7 +137,7 @@ func printOptions(out *bytes.Buffer, command *cobra.Command) {
 	}
 }
 
-func genMarkdown(command *cobra.Command, parent, docsDir string) {
+func genMarkdown(command *cobra.Command, parent string, docsDir *os.Root) {
 	dparent := strings.Replace(parent, " ", "-", -1)
 	name := command.Name()
 	dname := name
@@ -176,8 +182,7 @@ June 2016, Ported from the Kubernetes man-doc generator
 
 	final := mangen.Render(out.Bytes())
 
-	filename := docsDir + dname + ".1"
-	outFile, err := os.Create(filename)
+	outFile, err := docsDir.Create(dname + ".1")
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
