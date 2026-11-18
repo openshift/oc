@@ -844,6 +844,36 @@ func TestStatusCommand(t *testing.T) {
 			},
 		},
 		{
+			name:              "completed transition",
+			infraSpec:         configv1.HighlyAvailableTopologyMode,
+			infraStatus:       configv1.HighlyAvailableTopologyMode,
+			infraTopology:     configv1.HighlyAvailableTopologyMode,
+			infraTopologySpec: configv1.HighlyAvailableTopologyMode,
+			evaluatedStatus:   metav1.ConditionTrue,
+			evaluatedReason:   "EvaluationComplete",
+			evaluatedMessage:  "Topology transition evaluations completed successfully",
+			completedStatus:   metav1.ConditionTrue,
+			completedReason:   "TopologyTransitionCompleted",
+			completedMessage:  "Topology transition from SingleReplica to HighlyAvailable completed",
+			expectedOutputContains: []string{
+				"Control Plane Topology:",
+				"Spec (desired):   HighlyAvailable",
+				"Status (current): HighlyAvailable",
+				"Infrastructure Topology:",
+				"Spec (desired):   HighlyAvailable",
+				"Status (current): HighlyAvailable",
+				"Transition Status:",
+				`Completed:
+    Message: Topology transition from SingleReplica to HighlyAvailable completed
+    Reason: TopologyTransitionCompleted
+    Status: "True"`,
+				`Evaluated:
+    Message: Topology transition evaluations completed successfully
+    Reason: EvaluationComplete
+    Status: "True"`,
+			},
+		},
+		{
 			name:              "no transition",
 			infraSpec:         configv1.HighlyAvailableTopologyMode,
 			infraStatus:       configv1.HighlyAvailableTopologyMode,
