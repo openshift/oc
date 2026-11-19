@@ -65,6 +65,13 @@ const (
 	defaultVolumePercentage   = 70
 	defaultSourceDir          = "/must-gather/"
 
+	// Image pull failure markers shared by waitForGatherContainerRunning and
+	// isImagePullFailure so production and tests stay in sync.
+	unableToPullImageMsg   = "unable to pull image"
+	errImagePullReason     = "ErrImagePull"
+	imagePullBackOffReason = "ImagePullBackOff"
+	invalidImageNameReason = "InvalidImageName"
+
 	// defaultKeepAliveInterval is the default interval for client-side
 	// authenticated API probes that reset the OAuth access-token inactivity
 	// timer. Clusters with accessTokenInactivityTimeout (common in regulated
@@ -1105,8 +1112,8 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(ctx context.Context, p
 			state := pod.Status.ContainerStatuses[0].State
 			if state.Waiting != nil {
 				switch state.Waiting.Reason {
-				case "ErrImagePull", "ImagePullBackOff", "InvalidImageName":
-					return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
+				case errImagePullReason, imagePullBackOffReason, invalidImageNameReason:
+					return true, fmt.Errorf("%s: %v: %v", unableToPullImageMsg, state.Waiting.Reason, state.Waiting.Message)
 				}
 			}
 			running := state.Running != nil
@@ -1398,11 +1405,9 @@ func isImagePullFailure(err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := err.Error()
-	return strings.Contains(msg, "unable to pull image") ||
-		strings.Contains(msg, "ErrImagePull") ||
-		strings.Contains(msg, "ImagePullBackOff") ||
-		strings.Contains(msg, "InvalidImageName")
+	// All image-pull failures from waitForGatherContainerRunning are formatted
+	// with unableToPullImageMsg, so a single shared marker is enough.
+	return strings.Contains(err.Error(), unableToPullImageMsg)
 }
 
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*

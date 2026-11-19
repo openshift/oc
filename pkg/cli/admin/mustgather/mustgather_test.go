@@ -701,7 +701,7 @@ func TestNewPod(t *testing.T) {
 }
 
 func TestShouldRunBackupCollection(t *testing.T) {
-	pullErr := fmt.Errorf("gather did not start for pod x: unable to pull image: ImagePullBackOff: not found")
+	pullErr := fmt.Errorf("gather did not start for pod x: %s: %s: not found", unableToPullImageMsg, imagePullBackOffReason)
 	otherErr := fmt.Errorf("copy failed")
 
 	tests := []struct {
@@ -757,13 +757,44 @@ func TestShouldRunBackupCollection(t *testing.T) {
 }
 
 func TestIsImagePullFailure(t *testing.T) {
-	if isImagePullFailure(nil) {
-		t.Fatal("nil should not be a pull failure")
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "nil",
+			err:  nil,
+			want: false,
+		},
+		{
+			name: "ErrImagePull",
+			err:  fmt.Errorf("%s: %s: rpc error", unableToPullImageMsg, errImagePullReason),
+			want: true,
+		},
+		{
+			name: "ImagePullBackOff",
+			err:  fmt.Errorf("%s: %s: not found", unableToPullImageMsg, imagePullBackOffReason),
+			want: true,
+		},
+		{
+			name: "InvalidImageName",
+			err:  fmt.Errorf("%s: %s: bad ref", unableToPullImageMsg, invalidImageNameReason),
+			want: true,
+		},
+		{
+			name: "generic error",
+			err:  fmt.Errorf("gather never finished"),
+			want: false,
+		},
 	}
-	if !isImagePullFailure(fmt.Errorf("unable to pull image: ErrImagePull: rpc error")) {
-		t.Fatal("expected pull failure for ErrImagePull")
-	}
-	if isImagePullFailure(fmt.Errorf("gather never finished")) {
-		t.Fatal("generic error should not be a pull failure")
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isImagePullFailure(tc.err)
+			if got != tc.want {
+				t.Errorf("isImagePullFailure() = %v, want %v", got, tc.want)
+			}
+		})
 	}
 }
