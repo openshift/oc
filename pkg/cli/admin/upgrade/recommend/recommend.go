@@ -478,7 +478,7 @@ func notRecommendedCondition(update configv1.ConditionalUpdate) *metav1.Conditio
 		return c
 	}
 
-	risks := make([]string, len(update.Risks))
+	risks := make([]string, 0, len(update.Risks))
 	for _, risk := range update.Risks {
 		risks = append(risks, risk.Name)
 	}

@@ -5,7 +5,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	configv1 "github.com/openshift/api/config/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 func TestSortConditionalUpdatesBySemanticVersions(t *testing.T) {
@@ -27,5 +29,59 @@ func TestSortConditionalUpdatesBySemanticVersions(t *testing.T) {
 	sortConditionalUpdatesBySemanticVersions(actual)
 	if !reflect.DeepEqual(actual, expected) {
 		t.Errorf("%v != %v", actual, expected)
+	}
+}
+
+func TestNotRecommendedCondition(t *testing.T) {
+	tests := []struct {
+		name     string
+		update   configv1.ConditionalUpdate
+		expected *metav1.Condition
+	}{
+		{
+			name:   "no risks returns nil",
+			update: configv1.ConditionalUpdate{},
+		},
+		{
+			name: "risks without conditions produces correct message",
+			update: configv1.ConditionalUpdate{
+				Release: configv1.Release{Version: "4.16.5"},
+				Risks:   []configv1.ConditionalUpdateRisk{{Name: "RiskB"}, {Name: "RiskA"}},
+			},
+			expected: &metav1.Condition{
+				Type:    "Recommended",
+				Status:  "Unknown",
+				Reason:  "NoConditions",
+				Message: "Conditional update to 4.16.5 has risks (RiskA, RiskB), but no conditions.",
+			},
+		},
+		{
+			name: "single risk correct",
+			update: configv1.ConditionalUpdate{
+				Release: configv1.Release{Version: "4.16.5"},
+				Risks:   []configv1.ConditionalUpdateRisk{{Name: "TechPreviewNoUpgrade"}},
+			},
+			expected: &metav1.Condition{
+				Type:    "Recommended",
+				Status:  "Unknown",
+				Reason:  "NoConditions",
+				Message: "Conditional update to 4.16.5 has risks (TechPreviewNoUpgrade), but no conditions.",
+			},
+		},
+		{
+			name: "recommended true returns nil",
+			update: configv1.ConditionalUpdate{
+				Risks:      []configv1.ConditionalUpdateRisk{{Name: "R1"}},
+				Conditions: []metav1.Condition{{Type: "Recommended", Status: metav1.ConditionTrue}},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := notRecommendedCondition(tt.update)
+			if diff := cmp.Diff(tt.expected, got); diff != "" {
+				t.Errorf("unexpected result (-want +got):\n%s", diff)
+			}
+		})
 	}
 }
