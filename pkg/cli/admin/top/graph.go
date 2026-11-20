@@ -68,13 +68,13 @@ func addImageStreamsToGraph(g genericgraph.Graph, streams *imagev1.ImageStreamLi
 		imageStreamNode := isNode.(*imagegraph.ImageStreamNode)
 
 		// connect IS with underlying images
-		for tag, history := range stream.Status.Tags {
+		for _, history := range stream.Status.Tags {
 			for i := range history.Items {
 				image := history.Items[i]
 				imageNode := imagegraph.FindImage(g, image.Image)
 				if imageNode == nil {
 					klog.V(2).Infof("Unable to find image %q in graph (from tag=%q, dockerImageReference=%s)",
-						history.Items[i].Image, tag, image.DockerImageReference)
+						history.Items[i].Image, history.Tag, image.DockerImageReference)
 					continue
 				}
 				klog.V(4).Infof("Adding edge from %q to %q", imageStreamNode.UniqueName(), imageNode.UniqueName())
