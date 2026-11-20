@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 )
 
 // Set stores the id token and the refresh token
@@ -23,6 +24,8 @@ type Set struct {
 type Key struct {
 	IssuerURL string
 	ClientID  string
+	// ExtraScopes are sorted internally by computeFilename to ensure deterministic cache keys.
+	ExtraScopes []string
 }
 
 // tokenCacheEntity is a internal structure for the in-memory token
@@ -87,6 +90,13 @@ func (r *Repository) Save(dir string, key Key, tokenSet Set) error {
 }
 
 func computeFilename(key Key) (string, error) {
+	if key.ExtraScopes != nil {
+		sorted := make([]string, len(key.ExtraScopes))
+		copy(sorted, key.ExtraScopes)
+		sort.Strings(sorted)
+		key.ExtraScopes = sorted
+	}
+
 	s := sha256.New()
 	e := gob.NewEncoder(s)
 	if err := e.Encode(&key); err != nil {
