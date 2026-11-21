@@ -29,6 +29,7 @@ require (
 	github.com/gonum/graph v0.0.0-20170401004347-50b27dea7ebb
 	github.com/google/go-cmp v0.7.0
 	github.com/int128/oauth2cli v1.18.0
+	github.com/int128/oauth2dev v1.1.0
 	github.com/joelanford/ignore v0.1.2
 	github.com/moby/buildkit v0.12.5
 	github.com/moby/sys/sequential v0.7.0

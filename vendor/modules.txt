@@ -571,6 +571,9 @@ github.com/int128/listener
 ## explicit; go 1.24.0
 github.com/int128/oauth2cli
 github.com/int128/oauth2cli/oauth2params
+# github.com/int128/oauth2dev v1.1.0
+## explicit; go 1.23.0
+github.com/int128/oauth2dev
 # github.com/jbenet/go-context v0.0.0-20150711004518-d14ea06fba99
 ## explicit
 github.com/jbenet/go-context/io
