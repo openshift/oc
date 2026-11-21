@@ -41,6 +41,7 @@ import (
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 	admissionapi "k8s.io/pod-security-admission/api"
+	"k8s.io/utils/clock"
 	"k8s.io/utils/exec"
 	utilptr "k8s.io/utils/ptr"
 
@@ -73,7 +74,9 @@ var (
 	`)
 
 	mustGatherExample = templates.Examples(`
-		# Gather information using the default plug-in image and command, writing into ./must-gather.local.<rand>
+		# Gather information using the default plug-in image and command, writing into
+		# ./must-gather.local.<cluster-id-suffix>.<timestamp(UTC)>.<rand>
+		# or ./must-gather.local.<timestamp(UTC)>.<rand> if the cluster ID is unavailable
 		  oc adm must-gather
 
 		# Gather information with a specific local folder to copy to
@@ -230,7 +233,7 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 		}
 	}
 	if len(o.DestDir) == 0 {
-		o.DestDir = fmt.Sprintf("must-gather.local.%06d", rand.Int63())
+		o.DestDir = o.generateDestDir()
 	}
 	// TODO: this should be in Validate() method, but added here because of the call to o.completeImages() below
 	if o.AllImages {
@@ -264,6 +267,51 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	}
 	o.RsyncRshCmd = rsync.DefaultRsyncRemoteShellToUse(cmd)
 	return nil
+}
+
+// getClock returns the injected PassiveClock, defaulting to clock.RealClock{} when unset.
+func (o *MustGatherOptions) getClock() clock.PassiveClock {
+	if o.clock != nil {
+		return o.clock
+	}
+	return clock.RealClock{}
+}
+
+// generateDestDir builds the default destination directory name for must-gather output.
+// The format includes a partial cluster ID (last 12 characters), a UTC timestamp, and a
+// random ID to help distinguish must-gather archives from different clusters and collection
+// times. If the cluster ID cannot be retrieved (e.g. cluster is unreachable), it falls back
+// to the timestamp and random ID only.
+func (o *MustGatherOptions) generateDestDir() string {
+	parts := []string{"must-gather.local"}
+
+	if clusterID := o.getClusterIDSuffix(); clusterID != "" {
+		parts = append(parts, clusterID)
+	}
+
+	timestamp := o.getClock().Now().UTC().Format("20060102T150405Z")
+	parts = append(parts, timestamp)
+
+	parts = append(parts, fmt.Sprintf("%06d", rand.Int63()))
+
+	return strings.Join(parts, ".")
+}
+
+func (o *MustGatherOptions) getClusterIDSuffix() string {
+	lookupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cv, err := o.ConfigClient.ConfigV1().ClusterVersions().Get(lookupCtx, "version", metav1.GetOptions{})
+	if err != nil {
+		klog.V(4).Infof("unable to retrieve cluster ID for directory name: %v", err)
+		return ""
+	}
+
+	id := string(cv.Spec.ClusterID)
+	if length := len(id); length > 12 {
+		return id[length-12:]
+	}
+	return id
 }
 
 func (o *MustGatherOptions) completeImages(ctx context.Context) error {
@@ -398,6 +446,7 @@ type MustGatherOptions struct {
 	SinceTime        string
 
 	RsyncRshCmd string
+	clock       clock.PassiveClock
 
 	PrinterCreated printers.ResourcePrinter
 	PrinterDeleted printers.ResourcePrinter
