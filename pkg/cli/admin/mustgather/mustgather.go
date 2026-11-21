@@ -244,6 +244,8 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	if len(o.DestDir) == 0 {
 		o.DestDir = o.generateDestDir()
 	}
+	// Record whether images were explicitly specified by the user before defaulting occurs
+	o.UserSpecifiedImages = len(o.Images) > 0 || len(o.ImageStreams) > 0
 	// TODO: this should be in Validate() method, but added here because of the call to o.completeImages() below
 	if o.AllImages {
 		errStr := "and --all-images are mutually exclusive: please specify one or the other"
@@ -445,8 +447,9 @@ type MustGatherOptions struct {
 	HostNetwork      bool
 	DestDir          string
 	SourceDir        string
-	Images           []string
-	AllImages        bool
+	Images              []string
+	UserSpecifiedImages bool
+	AllImages           bool
 	ImageStreams     []string
 	Command          []string
 	Timeout          time.Duration
@@ -808,13 +811,11 @@ func (o *MustGatherOptions) Run() error {
 	for i := range errCh {
 		errs = append(errs, i)
 	}
-	if len(errs) == 0 {
-		// If we didn't have an error during collection, then we don't need to do our backup collection.
-		runBackCollection = false
-	} else if len(o.Command) > 0 {
-		// If we had errors, but the user specified a command, he probably just typoed the command.
-		// If the command was specified, don't run the backup collection.
-		runBackCollection = false
+	runBackCollection = o.shouldRunBackupCollection(len(errs) > 0)
+	if !runBackCollection && o.UserSpecifiedImages && len(errs) > 0 {
+		fmt.Fprintf(o.ErrOut, "\nWhen --image or --image-stream is specified, that specific image is required.\n")
+		fmt.Fprintf(o.ErrOut, "The command will not fall back to generic cluster data collection.\n")
+		fmt.Fprintf(o.ErrOut, "Please verify the image name, pull secrets, and registry access, and try again.\n\n")
 	}
 
 	// now gather all the events into a single file and produce a unified file
@@ -823,6 +824,20 @@ func (o *MustGatherOptions) Run() error {
 	}
 
 	return kutilerrors.NewAggregate(errs)
+}
+
+// shouldRunBackupCollection determines whether fallback collection (oc adm inspect) should be executed.
+func (o *MustGatherOptions) shouldRunBackupCollection(hasErrors bool) bool {
+	if !hasErrors {
+		return false
+	}
+	if len(o.Command) > 0 {
+		return false
+	}
+	if o.UserSpecifiedImages {
+		return false
+	}
+	return true
 }
 
 // startClientKeepAlive spawns a background goroutine that periodically makes

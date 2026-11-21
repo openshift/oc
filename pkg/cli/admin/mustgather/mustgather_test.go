@@ -699,3 +699,62 @@ func TestNewPod(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldRunBackupCollection(t *testing.T) {
+	tests := []struct {
+		name                string
+		hasErrors           bool
+		command             []string
+		userSpecifiedImages bool
+		expectedFallback    bool
+	}{
+		{
+			name:                "no errors, default image",
+			hasErrors:           false,
+			command:             nil,
+			userSpecifiedImages: false,
+			expectedFallback:    false,
+		},
+		{
+			name:                "errors occurred with default image",
+			hasErrors:           true,
+			command:             nil,
+			userSpecifiedImages: false,
+			expectedFallback:    true,
+		},
+		{
+			name:                "errors occurred with custom command specified",
+			hasErrors:           true,
+			command:             []string{"/usr/bin/custom-gather"},
+			userSpecifiedImages: false,
+			expectedFallback:    false,
+		},
+		{
+			name:                "errors occurred with user-specified image",
+			hasErrors:           true,
+			command:             nil,
+			userSpecifiedImages: true,
+			expectedFallback:    false,
+		},
+		{
+			name:                "errors occurred with both custom image and custom command",
+			hasErrors:           true,
+			command:             []string{"/usr/bin/custom-gather"},
+			userSpecifiedImages: true,
+			expectedFallback:    false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			o := &MustGatherOptions{
+				Command:             tc.command,
+				UserSpecifiedImages: tc.userSpecifiedImages,
+			}
+			got := o.shouldRunBackupCollection(tc.hasErrors)
+			if got != tc.expectedFallback {
+				t.Errorf("shouldRunBackupCollection(%v) = %v, expected %v", tc.hasErrors, got, tc.expectedFallback)
+			}
+		})
+	}
+}
