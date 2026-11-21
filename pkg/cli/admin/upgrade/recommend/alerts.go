@@ -286,7 +286,7 @@ func (o *options) alertsEvaluatedByCVO(ctx context.Context) (bool, error) {
 
 	// if the AcceptRisks feature gate is enabled AND oc is not running against a hosted cluster,
 	// the CVO is handling alerts and will generate the Recommended condition if needed
-	return isAcceptRisksEnabled(featureGates, cv.Status.Desired.Version) && !isHostedCluster(infrastructure), nil
+	return isAcceptRisksEnabled(featureGates, cv.Status.Desired.Version) && !status.IsHostedCluster(infrastructure), nil
 }
 
 // isAcceptRisksEnabled checks to see if the 'ClusterUpdateAcceptRisks' feature gate is enabled
@@ -306,8 +306,4 @@ func isAcceptRisksEnabled(featureGate *configv1.FeatureGate, clusterVersion stri
 		}
 	}
 	return false
-}
-
-func isHostedCluster(i *configv1.Infrastructure) bool {
-	return i != nil && i.Status.ControlPlaneTopology == configv1.ExternalTopologyMode
 }
