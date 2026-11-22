@@ -45,7 +45,7 @@ require (
 	github.com/spf13/pflag v1.0.7
 	github.com/vincent-petithory/dataurl v1.0.0
 	golang.org/x/crypto v0.48.0
-	golang.org/x/net v0.49.0
+	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.30.0
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.41.0
