@@ -30,13 +30,18 @@ func parseProxyURL(proxyURL string) (*url.URL, error) {
 
 	switch u.Scheme {
 	case "http", "https", "socks5":
+		if u.Hostname() == "" {
+			return nil, errors.New("invalid --proxy-url: host must be specified")
+		}
+		return u, nil
 	default:
+		// "host:port" parses as a scheme with an empty host. Don't quote that
+		// scheme; it is not an absolute proxy URL.
+		if u.Scheme == "" || u.Hostname() == "" {
+			return nil, errors.New("invalid --proxy-url: must be an absolute URL with scheme http, https, or socks5")
+		}
 		return nil, fmt.Errorf("invalid --proxy-url: unsupported scheme %q, must be http, https, or socks5", u.Scheme)
 	}
-	if u.Hostname() == "" {
-		return nil, errors.New("invalid --proxy-url: host must be specified")
-	}
-	return u, nil
 }
 
 // setClientConfigProxy configures rest.Config.Proxy from a proxy URL string.

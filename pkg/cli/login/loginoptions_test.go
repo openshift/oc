@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/MakeNowJust/heredoc"
@@ -658,6 +659,27 @@ func TestValidateAutoOpenBrowser(t *testing.T) {
 	}
 }
 
+// contactRecorder notes which httptest handler ran. Handlers execute on
+// another goroutine, so the name is stored atomically.
+type contactRecorder struct {
+	name atomic.Pointer[string]
+}
+
+func (c *contactRecorder) handler(name string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		n := name
+		c.name.Store(&n)
+		w.WriteHeader(http.StatusOK)
+	}
+}
+
+func (c *contactRecorder) get() string {
+	if v := c.name.Load(); v != nil {
+		return *v
+	}
+	return ""
+}
+
 // TestProxyURL covers --proxy-url validation, login client selection, and kubeconfig persistence.
 func TestProxyURL(t *testing.T) {
 	t.Run("flag is registered", func(t *testing.T) {
@@ -689,7 +711,12 @@ func TestProxyURL(t *testing.T) {
 			{
 				name:           "missing scheme",
 				proxyURL:       "squid.example.com:3128",
-				expectedErrMsg: `invalid --proxy-url: unsupported scheme "squid.example.com", must be http, https, or socks5`,
+				expectedErrMsg: "invalid --proxy-url: must be an absolute URL with scheme http, https, or socks5",
+			},
+			{
+				name:           "scheme relative",
+				proxyURL:       "//squid.example.com:3128",
+				expectedErrMsg: "invalid --proxy-url: must be an absolute URL with scheme http, https, or socks5",
 			},
 			{
 				name:           "scheme only",
@@ -749,16 +776,10 @@ func TestProxyURL(t *testing.T) {
 	// getClientConfig dials the server (via dialToServer); handlers record which
 	// endpoint was contacted so we assert proxy selection without calling Proxy().
 	t.Run("explicit flag is used for dial", func(t *testing.T) {
-		contacted := ""
-		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contacted = "api"
-			w.WriteHeader(http.StatusOK)
-		}))
+		var contacted contactRecorder
+		apiServer := httptest.NewServer(contacted.handler("api"))
 		defer apiServer.Close()
-		proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contacted = "proxy"
-			w.WriteHeader(http.StatusOK)
-		}))
+		proxyServer := httptest.NewServer(contacted.handler("proxy"))
 		defer proxyServer.Close()
 
 		_, err := (&LoginOptions{
@@ -769,24 +790,18 @@ func TestProxyURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("getClientConfig: %v", err)
 		}
-		if contacted != "proxy" {
-			t.Fatalf("dial contacted %q, want proxy", contacted)
+		if got := contacted.get(); got != "proxy" {
+			t.Fatalf("dial contacted %q, want proxy", got)
 		}
 	})
 
 	// Re-login without --proxy-url must still dial through the existing
 	// kubeconfig cluster proxy-url (getClientConfig performs the real request).
 	t.Run("existing cluster proxy is preserved", func(t *testing.T) {
-		contacted := ""
-		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contacted = "api"
-			w.WriteHeader(http.StatusOK)
-		}))
+		var contacted contactRecorder
+		apiServer := httptest.NewServer(contacted.handler("api"))
 		defer apiServer.Close()
-		proxyServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contacted = "proxy"
-			w.WriteHeader(http.StatusOK)
-		}))
+		proxyServer := httptest.NewServer(contacted.handler("proxy"))
 		defer proxyServer.Close()
 
 		_, err := (&LoginOptions{
@@ -800,28 +815,19 @@ func TestProxyURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("getClientConfig: %v", err)
 		}
-		if contacted != "proxy" {
-			t.Fatalf("dial contacted %q, want proxy", contacted)
+		if got := contacted.get(); got != "proxy" {
+			t.Fatalf("dial contacted %q, want proxy", got)
 		}
 	})
 
 	// --proxy-url must win over an existing cluster proxy-url on the real dial.
 	t.Run("explicit flag overrides existing cluster proxy", func(t *testing.T) {
-		contacted := ""
-		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contacted = "api"
-			w.WriteHeader(http.StatusOK)
-		}))
+		var contacted contactRecorder
+		apiServer := httptest.NewServer(contacted.handler("api"))
 		defer apiServer.Close()
-		oldProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contacted = "old-proxy"
-			w.WriteHeader(http.StatusOK)
-		}))
+		oldProxy := httptest.NewServer(contacted.handler("old-proxy"))
 		defer oldProxy.Close()
-		newProxy := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			contacted = "new-proxy"
-			w.WriteHeader(http.StatusOK)
-		}))
+		newProxy := httptest.NewServer(contacted.handler("new-proxy"))
 		defer newProxy.Close()
 
 		_, err := (&LoginOptions{
@@ -836,8 +842,8 @@ func TestProxyURL(t *testing.T) {
 		if err != nil {
 			t.Fatalf("getClientConfig: %v", err)
 		}
-		if contacted != "new-proxy" {
-			t.Fatalf("dial contacted %q, want new-proxy", contacted)
+		if got := contacted.get(); got != "new-proxy" {
+			t.Fatalf("dial contacted %q, want new-proxy", got)
 		}
 	})
 
@@ -866,8 +872,9 @@ func TestProxyURL(t *testing.T) {
 		}
 	})
 
-	// Leaving Proxy nil preserves normal client-go HTTPS_PROXY/HTTP_PROXY
-	// behavior on the default transport.
+	// Leaving Proxy nil preserves client-go's default transport, which still
+	// honors HTTPS_PROXY/HTTP_PROXY. ProxyFromEnvironment never proxies
+	// loopback, so this checks the config rather than dialing via an env proxy.
 	t.Run("leaves Proxy nil without flag or cluster proxy", func(t *testing.T) {
 		apiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)
