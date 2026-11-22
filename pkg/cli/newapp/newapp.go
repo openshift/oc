@@ -36,7 +36,6 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/generate"
 	"k8s.io/kubectl/pkg/polymorphichelpers"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -53,6 +52,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/reference"
 	"github.com/openshift/oc/pkg/helpers/bulk"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
+	"github.com/openshift/oc/pkg/helpers/generate"
 	imagehelpers "github.com/openshift/oc/pkg/helpers/image"
 	"github.com/openshift/oc/pkg/helpers/newapp"
 	newappapp "github.com/openshift/oc/pkg/helpers/newapp/app"

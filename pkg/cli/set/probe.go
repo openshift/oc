@@ -68,7 +68,7 @@ var (
 		# Set an HTTP readiness probe over HTTPS on 127.0.0.1 for a hostNetwork pod
 		oc set probe dc/router --readiness --get-url=https://127.0.0.1:1936/stats
 
-		# Set only the initial-delay-seconds field on all deployments
+		# Set only the initial-delay-seconds field on all deployment configs
 		oc set probe dc --all --readiness --initial-delay-seconds=30
 	`)
 )

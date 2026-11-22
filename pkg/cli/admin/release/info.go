@@ -148,7 +148,7 @@ func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comm
 
 	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file. If set, data from this file will be used to find alternative locations for images.")
 	flags.MarkDeprecated("icsp-file", "support for it will be removed in a future release. Use --idms-file instead.")
-	flags.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images.")
+	flags.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images. Mirrors will be tried first.")
 
 	flags.BoolVar(&o.ShowContents, "contents", o.ShowContents, "Display the contents of a release.")
 	flags.BoolVar(&o.ShowCommit, "commits", o.ShowCommit, "Display information about the source an image was created with.")
@@ -1065,7 +1065,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 		if _, ok := out[k]; ok {
 			continue
 		}
-		version := v.List()[0]
+		version := strings.Join(v.List(), ", ")
 		if out == nil {
 			out = make(ComponentVersions)
 		}
@@ -1085,7 +1085,7 @@ func readComponentVersions(is *imageapi.ImageStream, errOut io.Writer) (Componen
 			continue
 		}
 		if len(version.DisplayName) == 0 {
-			version.DisplayName = v.List()[0]
+			version.DisplayName = strings.Join(v.List(), ", ")
 		}
 		out[k] = version
 	}

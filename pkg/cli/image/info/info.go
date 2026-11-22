@@ -82,6 +82,8 @@ func NewInfo(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Comm
 	flags.StringVarP(&o.Output, "output", "o", o.Output, "Print the image in an alternative format: json")
 	flags.StringVar(&o.FileDir, "dir", o.FileDir, "The directory on disk that file:// images will be read from.")
 	flags.StringVar(&o.ICSPFile, "icsp-file", o.ICSPFile, "Path to an ImageContentSourcePolicy file.  If set, data from this file will be used to find alternative locations for images.")
+	flags.MarkDeprecated("icsp-file", "support for it will be removed in a future release. Use --idms-file instead.")
+	flags.StringVar(&o.IDMSFile, "idms-file", o.IDMSFile, "Path to an ImageDigestMirrorSet file. If set, data from this file will be used to find alternative locations for images. Mirrors will be tried first.")
 	flags.BoolVar(&o.ShowMultiArch, "show-multiarch", o.ShowMultiArch, "Show information even if the image is multiarch image. If not set, error is thrown for multiarch images.")
 
 	return cmd
@@ -97,6 +99,7 @@ type InfoOptions struct {
 	FileDir       string
 	Output        string
 	ICSPFile      string
+	IDMSFile      string
 	ShowMultiArch bool
 }
 
@@ -113,6 +116,9 @@ func (o *InfoOptions) Validate(cmd *cobra.Command) error {
 	if len(o.Images) == 0 {
 		return fmt.Errorf("must specify one or more images as arguments")
 	}
+	if len(o.ICSPFile) > 0 && len(o.IDMSFile) > 0 {
+		return fmt.Errorf("icsp-file and idms-file are mutually exclusive")
+	}
 	return o.FilterOptions.Validate()
 }
 
@@ -123,7 +129,12 @@ func (o *InfoOptions) Run() error {
 		return err
 	}
 	if len(o.ICSPFile) > 0 {
+		// We continue to use OnError strategy for ICSP only to maintain
+		// longstanding (but suboptimal) behaviour.
 		registryContext = registryContext.WithAlternateBlobSourceStrategy(strategy.NewICSPOnErrorStrategy(o.ICSPFile))
+	}
+	if len(o.IDMSFile) > 0 {
+		registryContext = registryContext.WithAlternateBlobSourceStrategy(strategy.NewIDMSExplicitStrategy(o.IDMSFile))
 	}
 	opts := &imagesource.Options{
 		FileDir:         o.FileDir,
@@ -132,7 +143,7 @@ func (o *InfoOptions) Run() error {
 	}
 
 	hadError := false
-	icspWarned := false
+	alternateSourceWarned := false
 	for _, location := range o.Images {
 		sources, err := imagesource.ParseSourceReference(location, opts.ExpandWildcard)
 		if err != nil {
@@ -142,9 +153,9 @@ func (o *InfoOptions) Run() error {
 			if len(src.Ref.Tag) == 0 && len(src.Ref.ID) == 0 {
 				return fmt.Errorf("--from must point to an image ID or image tag")
 			}
-			if !icspWarned && len(o.ICSPFile) > 0 && len(src.Ref.Tag) > 0 {
-				fmt.Fprintf(o.ErrOut, "warning: --icsp-file only applies to images referenced by digest and will be ignored for tags\n")
-				icspWarned = true
+			if !alternateSourceWarned && (len(o.ICSPFile) > 0 || len(o.IDMSFile) > 0) && len(src.Ref.Tag) > 0 {
+				fmt.Fprintf(o.ErrOut, "warning: --idms-file (and --icsp-file) only applies to images referenced by digest and will be ignored for tags\n")
+				alternateSourceWarned = true
 			}
 
 			var images []*Image

@@ -17,9 +17,9 @@ import (
 	corev1client "k8s.io/client-go/kubernetes/typed/core/v1"
 	watchtools "k8s.io/client-go/tools/watch"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/generate"
 	"k8s.io/kubectl/pkg/util/templates"
 
+	"github.com/openshift/oc/pkg/helpers/generate"
 	"github.com/openshift/oc/pkg/helpers/term"
 )
 

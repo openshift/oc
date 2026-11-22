@@ -44,7 +44,7 @@ aliases:
     - mpatlasov
     - rhrmo
     - dfajmon
-  storage-approvers: 
+  storage-approvers:
     - jsafrane
     - tsmetana
     - gnufied
@@ -53,3 +53,45 @@ aliases:
     - mpatlasov
     - rhrmo
     - dfajmon
+  openshift-edge-reviewers:
+    - Neilhamza
+    - agullon
+    - copejon
+    - dhensel-rh
+    - eggfoobar
+    - eslutsky
+    - fonta-rh
+    - fracappa
+    - ggiguash
+    - jaypoulz
+    - jeff-roche
+    - jerpeter1
+    - jogeo
+    - kasturinarra
+    - lucaconsalvi
+    - mmakwana30
+    - pacevedom
+    - pmtk
+    - qJkee
+    - vimauro
+  openshift-edge-approvers:
+    - Neilhamza
+    - agullon
+    - brandisher
+    - copejon
+    - dhensel-rh
+    - eggfoobar
+    - eslutsky
+    - fonta-rh
+    - fracappa
+    - ggiguash
+    - jaypoulz
+    - jeff-roche
+    - jerpeter1
+    - jogeo
+    - kasturinarra
+    - lucaconsalvi
+    - mmakwana30
+    - pacevedom
+    - pmtk
+    - qJkee

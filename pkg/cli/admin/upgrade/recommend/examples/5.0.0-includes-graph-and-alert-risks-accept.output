@@ -1,0 +1,26 @@
+Upstream update service: https://fauxinnati-fauxinnati.apps.ota-stage.q2z4.p1.openshiftapps.com/api/upgrades_info/graph
+Channel: risks-always (available channels: channel-head, risks-always, risks-matching, risks-nonmatching, simple, smoke-test)
+
+Updates to 5.1:
+
+  Version: 5.1.0
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:00000000000000000000000000000000000000000000000000000000004c4f28
+  Reason: MultipleReasons
+  Message: Cluster should not be upgraded between minor or major versions for multiple reasons: ClusterVersionOverridesSet,FeatureGates_RestrictedFeatureGates_TechPreviewNoUpgrade
+  * Disabling ownership via cluster version overrides prevents upgrades between minor or major versions. Please remove overrides before requesting a minor or major version update.
+  * Cluster operator config-operator should not be upgraded between minor or major versions: FeatureGatesUpgradeable: "TechPreviewNoUpgrade" does not allow updates
+  
+  This is a synthetic risk A that always applies for testing purposes https://docs.openshift.com/synthetic-risk-a
+  
+  This is a synthetic risk C that always applies for testing purposes https://docs.openshift.com/synthetic-risk-c
+  
+  Test alert aaa for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+
+Updates to 5.0:
+
+  Version: 5.0.0-ec.5
+  Image: quay.io/openshift-release-dev/ocp-release@sha256:cc0eae9544d40aadbac7e0ce1a9beb23056faf5e022620a03eaf50a41b118e61
+  Reason: MultipleReasons
+  Message: This is a synthetic risk A that always applies for testing purposes https://docs.openshift.com/synthetic-risk-a
+  
+  Test alert aaa for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound

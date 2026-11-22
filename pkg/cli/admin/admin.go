@@ -35,6 +35,7 @@ import (
 	"github.com/openshift/oc/pkg/cli/admin/release"
 	"github.com/openshift/oc/pkg/cli/admin/restartkubelet"
 	"github.com/openshift/oc/pkg/cli/admin/top"
+	"github.com/openshift/oc/pkg/cli/admin/transition"
 	"github.com/openshift/oc/pkg/cli/admin/upgrade"
 	"github.com/openshift/oc/pkg/cli/admin/verifyimagesignature"
 	"github.com/openshift/oc/pkg/cli/admin/waitfornodereboot"
@@ -49,6 +50,9 @@ var adminLong = ktemplates.LongDesc(`
 
 // inspectAlertsFeatureGate is an environment variable used to gate the inclusion of the inspect-alerts subcommand.
 const inspectAlertsFeatureGate = "OC_ENABLE_CMD_INSPECT_ALERTS"
+
+// transitionTopologyFeatureGate is an environment variable used to gate the inclusion of the transition topology subcommand.
+const transitionTopologyFeatureGate = "OC_ENABLE_CMD_TRANSITION_TOPOLOGY"
 
 func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *cobra.Command {
 	// Main command
@@ -70,6 +74,10 @@ func NewCommandAdmin(f kcmdutil.Factory, streams genericiooptions.IOStreams) *co
 
 	if kcmdutil.FeatureGate(inspectAlertsFeatureGate).IsEnabled() {
 		clusterManagement = append(clusterManagement, inspectalerts.New(f, streams))
+	}
+
+	if kcmdutil.FeatureGate(transitionTopologyFeatureGate).IsEnabled() {
+		clusterManagement = append(clusterManagement, transition.NewCmdTransition(f, streams))
 	}
 
 	groups := ktemplates.CommandGroups{

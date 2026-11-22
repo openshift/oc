@@ -25,7 +25,6 @@ import (
 	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	kcmdutil "k8s.io/kubectl/pkg/cmd/util"
-	"k8s.io/kubectl/pkg/generate"
 	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/templates"
 
@@ -36,6 +35,7 @@ import (
 	"github.com/openshift/library-go/pkg/template/templateprocessing"
 	cmdutil "github.com/openshift/oc/pkg/helpers/cmd"
 	"github.com/openshift/oc/pkg/helpers/describe"
+	"github.com/openshift/oc/pkg/helpers/generate"
 	"github.com/openshift/oc/pkg/helpers/newapp/app"
 	"github.com/openshift/oc/pkg/helpers/template/templateprocessorclient"
 )

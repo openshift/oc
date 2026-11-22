@@ -1,0 +1,13 @@
+Upstream update service: https://fauxinnati-fauxinnati.apps.ota-stage.q2z4.p1.openshiftapps.com/api/upgrades_info/graph
+Channel: risks-always (available channels: channel-head, risks-always, risks-matching, risks-nonmatching, simple, smoke-test)
+
+Update to 5.0.0-ec.5 Recommended=False:
+Image: quay.io/openshift-release-dev/ocp-release@sha256:cc0eae9544d40aadbac7e0ce1a9beb23056faf5e022620a03eaf50a41b118e61
+Release URL: https://access.redhat.com/errata/RHSA-2024:05000
+Reason: MultipleReasons
+Message: This is a synthetic risk A that always applies for testing purposes https://docs.openshift.com/synthetic-risk-a
+  
+  Test alert aaa for updates. https://github.com/openshift/runbooks/tree/master/alerts?runbook=notfound
+
+error: There are issues that apply to this cluster and have not been accepted. `oc adm upgrade accept` can be used to accept them: SyntheticRiskA,TestAlertA
+
