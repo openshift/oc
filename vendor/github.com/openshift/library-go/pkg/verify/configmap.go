@@ -6,8 +6,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"github.com/pkg/errors"
-	"golang.org/x/crypto/openpgp"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"

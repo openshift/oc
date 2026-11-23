@@ -39,6 +39,27 @@ type RSAKeyPairGenerator struct {
 	Bits int
 }
 
+func (g RSAKeyPairGenerator) Matches(pub crypto.PublicKey) error {
+	rsaPub, ok := pub.(*rsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("public key is %T, not *rsa.PublicKey", pub)
+	}
+	if rsaPub == nil {
+		return fmt.Errorf("RSA public key is nil")
+	}
+	if rsaPub.N == nil {
+		return fmt.Errorf("RSA public key has nil modulus")
+	}
+	bits := g.Bits
+	if bits == 0 {
+		bits = keyBits
+	}
+	if rsaPub.N.BitLen() != bits {
+		return fmt.Errorf("RSA key size is %d bits, not %d", rsaPub.N.BitLen(), bits)
+	}
+	return nil
+}
+
 func (g RSAKeyPairGenerator) GenerateKeyPair() (crypto.PublicKey, crypto.PrivateKey, error) {
 	bits := g.Bits
 	if bits == 0 {
@@ -55,6 +76,28 @@ func (g RSAKeyPairGenerator) GenerateKeyPair() (crypto.PublicKey, crypto.Private
 type ECDSAKeyPairGenerator struct {
 	// Curve is the named ECDSA curve.
 	Curve ECDSACurve
+}
+
+func (g ECDSAKeyPairGenerator) Matches(pub crypto.PublicKey) error {
+	curve, err := g.ellipticCurve()
+	if err != nil {
+		return fmt.Errorf("generator has invalid curve %q: %w", g.Curve, err)
+	}
+
+	ecPub, ok := pub.(*ecdsa.PublicKey)
+	if !ok {
+		return fmt.Errorf("public key is %T, not *ecdsa.PublicKey", pub)
+	}
+	if ecPub == nil {
+		return fmt.Errorf("ECDSA public key is nil")
+	}
+	if ecPub.Curve == nil {
+		return fmt.Errorf("ECDSA public key has nil curve")
+	}
+	if ecPub.Curve != curve {
+		return fmt.Errorf("ECDSA curve is %s, not %s", ecPub.Curve.Params().Name, curve.Params().Name)
+	}
+	return nil
 }
 
 func (g ECDSAKeyPairGenerator) GenerateKeyPair() (crypto.PublicKey, crypto.PrivateKey, error) {
