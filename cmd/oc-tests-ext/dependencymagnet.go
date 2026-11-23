@@ -5,5 +5,6 @@ package main
 import (
 	// Import test packages to register Ginkgo tests
 	_ "github.com/openshift/oc/test/e2e"
+	_ "github.com/openshift/oc/test/e2e/admin/transition"
 	_ "github.com/openshift/oc/test/e2e/admin/upgrade/accept"
 )
