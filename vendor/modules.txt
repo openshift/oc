@@ -892,7 +892,7 @@ golang.org/x/crypto/ssh/terminal
 # golang.org/x/exp v0.0.0-20200331195152-e8c3332aa8e5
 ## explicit; go 1.12
 golang.org/x/exp/mmap
-# golang.org/x/net v0.25.0 => github.com/openshift-sustaining/net v0.35.0-sec.4
+# golang.org/x/net v0.62.0 => github.com/openshift-sustaining/net v0.35.0-sec.4
 ## explicit; go 1.18
 golang.org/x/net/context
 golang.org/x/net/context/ctxhttp
