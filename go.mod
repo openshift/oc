@@ -40,7 +40,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/vincent-petithory/dataurl v1.0.0
 	golang.org/x/crypto v0.33.0
-	golang.org/x/net v0.25.0
+	golang.org/x/net v0.62.0
 	golang.org/x/sys v0.30.0
 	gopkg.in/yaml.v3 v3.0.1
 	k8s.io/api v0.25.2
