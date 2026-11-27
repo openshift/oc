@@ -14,6 +14,11 @@ import (
 // KeyPairGenerator generates a cryptographic key pair.
 type KeyPairGenerator interface {
 	GenerateKeyPair() (crypto.PublicKey, crypto.PrivateKey, error)
+	// Matches returns nil if pub is consistent with a key pair
+	// that a generator with the same parameters would
+	// produce. Returns a non-nil error describing the mismatch
+	// otherwise.
+	Matches(pub crypto.PublicKey) error
 }
 
 // NewSigningCertificate creates a CA certificate.

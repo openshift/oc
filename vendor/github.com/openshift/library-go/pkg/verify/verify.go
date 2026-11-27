@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"golang.org/x/crypto/openpgp"
+	"github.com/ProtonMail/go-crypto/openpgp"
 	"k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/klog/v2"
 
@@ -348,8 +348,8 @@ func verifySignatureWithKeyring(r io.Reader, keyring openpgp.EntityList) ([]byte
 				return nil, "", fmt.Errorf("signature expired on %s", expiry)
 			}
 		}
-	} else if md.SignatureV3 == nil {
-		return nil, "", fmt.Errorf("unexpected openpgp.MessageDetails: neither Signature nor SignatureV3 is set")
+	} else {
+		return nil, "", fmt.Errorf("unexpected openpgp.MessageDetails: Signature is not set")
 	}
 
 	// follow conventions in containers/image
