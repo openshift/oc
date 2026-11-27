@@ -17,7 +17,9 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func (o *InspectOptions) gatherPodData(ctx context.Context, destDir, namespace string, pod *corev1.Pod) error {
+// GatherPodData writes the pod resource YAML to destDir and gathers log
+// data for every container (init and regular) defined in the pod spec.
+func (o *InspectOptions) GatherPodData(ctx context.Context, destDir, namespace string, pod *corev1.Pod) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
@@ -32,13 +34,13 @@ func (o *InspectOptions) gatherPodData(ctx context.Context, destDir, namespace s
 
 	// gather data for each container in the given pod
 	for _, container := range pod.Spec.Containers {
-		if err := o.gatherContainerInfo(ctx, path.Join(destDir, "/"+container.Name), pod, container); err != nil {
+		if err := o.GatherContainerInfo(ctx, path.Join(destDir, "/"+container.Name), pod, container); err != nil {
 			errs = append(errs, err)
 			continue
 		}
 	}
 	for _, container := range pod.Spec.InitContainers {
-		if err := o.gatherContainerInfo(ctx, path.Join(destDir, "/"+container.Name), pod, container); err != nil {
+		if err := o.GatherContainerInfo(ctx, path.Join(destDir, "/"+container.Name), pod, container); err != nil {
 			errs = append(errs, err)
 			continue
 		}
@@ -50,28 +52,32 @@ func (o *InspectOptions) gatherPodData(ctx context.Context, destDir, namespace s
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerInfo(ctx context.Context, destDir string, pod *corev1.Pod, container corev1.Container) error {
-	if err := o.gatherContainerAllLogs(ctx, path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
+// GatherContainerInfo collects all available log data for a single container
+// within the given pod and writes it under destDir.
+func (o *InspectOptions) GatherContainerInfo(ctx context.Context, destDir string, pod *corev1.Pod, container corev1.Container) error {
+	if err := o.GatherContainerAllLogs(ctx, path.Join(destDir, "/"+container.Name), pod, &container); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (o *InspectOptions) gatherContainerAllLogs(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
+// GatherContainerAllLogs gathers current and previous container logs, and
+// optionally rotated log files when rotated pod log collection is enabled.
+func (o *InspectOptions) GatherContainerAllLogs(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
 	}
 
 	errs := []error{}
-	if err := o.gatherContainerLogs(ctx, path.Join(destDir, "/logs"), pod, container); err != nil {
-		errs = append(errs, filterContainerLogsErrors(err))
+	if err := o.GatherContainerLogs(ctx, path.Join(destDir, "/logs"), pod, container); err != nil {
+		errs = append(errs, FilterContainerLogsErrors(err))
 	}
 
 	if o.rotatedPodLogs {
-		if err := o.gatherContainerRotatedLogFiles(ctx, path.Join(destDir, "/logs/rotated"), pod, container); err != nil {
-			errs = append(errs, filterContainerLogsErrors(err))
+		if err := o.GatherContainerRotatedLogFiles(ctx, path.Join(destDir, "/logs/rotated"), pod, container); err != nil {
+			errs = append(errs, FilterContainerLogsErrors(err))
 		}
 	}
 	if len(errs) > 0 {
@@ -80,7 +86,10 @@ func (o *InspectOptions) gatherContainerAllLogs(ctx context.Context, destDir str
 	return nil
 }
 
-func filterContainerLogsErrors(err error) error {
+// FilterContainerLogsErrors filters out expected transient errors from
+// container log retrieval, such as "previous terminated container ... not found".
+// It returns nil for those cases and passes through all other errors unchanged.
+func FilterContainerLogsErrors(err error) error {
 	if strings.Contains(err.Error(), "previous terminated container") && strings.HasSuffix(err.Error(), "not found") {
 		klog.V(1).Infof("        Unable to gather previous container logs: %v\n", err)
 		return nil
@@ -88,7 +97,10 @@ func filterContainerLogsErrors(err error) error {
 	return err
 }
 
-func rotatedLogFilename(pod *corev1.Pod) (string, error) {
+// RotatedLogFilename returns the on-disk log directory name for the given pod.
+// For static pods (source "file") it uses the config hash annotation; for all
+// other pods it uses the pod UID.
+func RotatedLogFilename(pod *corev1.Pod) (string, error) {
 	if value, exists := pod.Annotations["kubernetes.io/config.source"]; exists && value == "file" {
 		hash, exists := pod.Annotations["kubernetes.io/config.hash"]
 		if !exists {
@@ -99,11 +111,14 @@ func rotatedLogFilename(pod *corev1.Pod) (string, error) {
 	return pod.Namespace + "_" + pod.Name + "_" + string(pod.GetUID()), nil
 }
 
-func (o *InspectOptions) gatherContainerRotatedLogFiles(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
+// GatherContainerRotatedLogFiles retrieves rotated log files for a container
+// from the node's filesystem via the kubelet proxy, honouring any --since or
+// --since-time constraints.
+func (o *InspectOptions) GatherContainerRotatedLogFiles(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	restClient := o.kubeClient.CoreV1().RESTClient()
 	var innerErrs []error
 
-	logFileName, err := rotatedLogFilename(pod)
+	logFileName, err := RotatedLogFilename(pod)
 	if err != nil {
 		return err
 	}
@@ -194,7 +209,10 @@ func (o *InspectOptions) gatherContainerRotatedLogFiles(ctx context.Context, des
 	return utilerrors.NewAggregate(innerErrs)
 }
 
-func (o *InspectOptions) gatherContainerLogs(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
+// GatherContainerLogs retrieves the current and previous container logs for
+// the specified container and writes them to destDir. If the initial request
+// fails it retries with InsecureSkipTLSVerifyBackend enabled.
+func (o *InspectOptions) GatherContainerLogs(ctx context.Context, destDir string, pod *corev1.Pod, container *corev1.Container) error {
 	// ensure destination path exists
 	if err := os.MkdirAll(destDir, os.ModePerm); err != nil {
 		return err
