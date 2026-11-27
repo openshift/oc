@@ -1095,8 +1095,8 @@ func (o *MustGatherOptions) isGatherDone(ctx context.Context, pod *corev1.Pod) (
 
 func (o *MustGatherOptions) waitForGatherContainerRunning(ctx context.Context, pod *corev1.Pod) error {
 	return wait.PollUntilContextTimeout(ctx, 10*time.Second, o.Timeout, true, func(ctx context.Context) (bool, error) {
-		var err error
-		if pod, err = o.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{}); err == nil {
+		pod, err := o.Client.CoreV1().Pods(pod.Namespace).Get(ctx, pod.Name, metav1.GetOptions{})
+		if err == nil {
 			if len(pod.Status.ContainerStatuses) == 0 {
 				return false, nil
 			}
