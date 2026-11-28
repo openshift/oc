@@ -15,7 +15,7 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/distribution/distribution/v3"
-	"github.com/distribution/distribution/v3/reference"
+	"github.com/distribution/reference"
 	"github.com/opencontainers/go-digest"
 	godigest "github.com/opencontainers/go-digest"
 	man "go.podman.io/image/v5/manifest"
@@ -139,6 +139,11 @@ func (s *fileTagStore) All(ctx context.Context) ([]string, error) {
 // Lookup returns the set of tags referencing the given digest.
 func (s *fileTagStore) Lookup(ctx context.Context, digest distribution.Descriptor) ([]string, error) {
 	return nil, fmt.Errorf("retrieving tags for a digest in local file storage is not supported")
+}
+
+// List returns the set of tags after last managed by this tag service
+func (s *fileTagStore) List(ctx context.Context, limit int, last string) ([]string, error) {
+	return nil, fmt.Errorf("paginated tag listing in local file storage is not supported")
 }
 
 type fileManifestService struct {

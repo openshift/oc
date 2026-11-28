@@ -17,7 +17,7 @@ import (
 	"github.com/openshift/library-go/pkg/image/reference"
 	"k8s.io/klog/v2"
 
-	distributionreference "github.com/distribution/distribution/v3/reference"
+	distributionreference "github.com/distribution/reference"
 )
 
 // AlternateBlobSourceStrategy is consulted when a repository cannot be reached to find alternate
@@ -572,4 +572,14 @@ func (f blobMirroredTags) Untag(ctx context.Context, tag string) error {
 	return f.repo.source(ctx, func(r distribution.Repository) error {
 		return r.Tags(ctx).Untag(ctx, tag)
 	})
+}
+
+func (f blobMirroredTags) List(ctx context.Context, limit int, last string) ([]string, error) {
+	var tags []string
+	err := f.repo.source(ctx, func(r distribution.Repository) error {
+		var err error
+		tags, err = r.Tags(ctx).List(ctx, limit, last)
+		return err
+	})
+	return tags, err
 }
