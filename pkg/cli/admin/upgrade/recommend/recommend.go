@@ -374,6 +374,9 @@ func (o *options) Run(ctx context.Context) error {
 					}
 					unaccepted := issues.Difference(accept)
 					if unaccepted.Len() > 0 {
+						if !o.quiet {
+							fmt.Fprintln(o.Out)
+						}
 						if cvoChecking {
 							return fmt.Errorf("There are issues that apply to this cluster and have not been accepted. `oc adm upgrade accept` can be used to accept them: %s\n", strings.Join(sets.List(unaccepted), ","))
 						}
