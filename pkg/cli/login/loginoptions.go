@@ -558,11 +558,10 @@ func (o *LoginOptions) SaveConfig() (bool, error) {
 		return false, err
 	}
 
-	cwd, err := os.Getwd()
-	if err != nil {
-		return false, err
-	}
-	baseDir, err := kclientcmdapi.MakeAbs(filepath.Dir(o.PathOptions.GetDefaultFilename()), cwd)
+	// Let MakeAbs handle os.Getwd() internally only when needed (for relative paths).
+	// For absolute kubeconfig paths like ~/.kube/config, this avoids failing on
+	// deleted/inaccessible working directories.
+	baseDir, err := kclientcmdapi.MakeAbs(filepath.Dir(o.PathOptions.GetDefaultFilename()), "")
 	if err != nil {
 		return false, err
 	}
