@@ -13,13 +13,16 @@ import (
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/int128/oauth2cli"
+	"github.com/int128/oauth2dev"
 	"golang.org/x/oauth2"
 )
 
-// Authenticator defines the basic functionality to support Auth Code Flow
-// and Token Refresh Grant Flow.
+// Authenticator defines the basic functionality to support Auth Code Flow,
+// Device Code Flow, and Token Refresh Grant Flow.
 type Authenticator interface {
 	GetTokenByAuthCode(ctx context.Context, callbackAddress string, localServerReadyChan chan<- string) (string, string, time.Time, error)
+	GetDeviceAuthorization(ctx context.Context) (*oauth2dev.AuthorizationResponse, error)
+	ExchangeDeviceCode(ctx context.Context, authResponse *oauth2dev.AuthorizationResponse) (string, string, time.Time, error)
 	Refresh(ctx context.Context, refreshToken string) (string, string, time.Time, error)
 	VerifyToken(ctx context.Context, token *oauth2.Token, nonce string) (string, time.Time, error)
 }
@@ -69,6 +72,31 @@ func (c *client) GetTokenByAuthCode(ctx context.Context, callbackAddress string,
 	}
 	idToken, expiry, err := c.VerifyToken(ctx, token, nonce)
 	return idToken, token.RefreshToken, expiry, err
+}
+
+// GetDeviceAuthorization initializes the device authorization code challenge
+func (c *client) GetDeviceAuthorization(ctx context.Context) (*oauth2dev.AuthorizationResponse, error) {
+	if c.httpClient != nil {
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
+	}
+	config := c.oauth2Config
+	config.Endpoint = oauth2.Endpoint{
+		AuthURL: c.provider.Endpoint().DeviceAuthURL,
+	}
+	return oauth2dev.RetrieveCode(ctx, config)
+}
+
+// ExchangeDeviceCode exchanges the device authorization code for the tokens
+func (c *client) ExchangeDeviceCode(ctx context.Context, authResponse *oauth2dev.AuthorizationResponse) (string, string, time.Time, error) {
+	if c.httpClient != nil {
+		ctx = context.WithValue(ctx, oauth2.HTTPClient, c.httpClient)
+	}
+	tokenResponse, err := oauth2dev.PollToken(ctx, c.oauth2Config, *authResponse)
+	if err != nil {
+		return "", "", time.Time{}, fmt.Errorf("device-code: exchange failed: %w", err)
+	}
+	idToken, expiry, err := c.VerifyToken(ctx, tokenResponse, "")
+	return idToken, tokenResponse.RefreshToken, expiry, err
 }
 
 func RandomString(length int) (string, error) {
