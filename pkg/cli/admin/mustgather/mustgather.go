@@ -65,6 +65,13 @@ const (
 	defaultVolumePercentage   = 70
 	defaultSourceDir          = "/must-gather/"
 
+	// Image pull failure markers shared by waitForGatherContainerRunning and
+	// isImagePullFailure so production and tests stay in sync.
+	unableToPullImageMsg   = "unable to pull image"
+	errImagePullReason     = "ErrImagePull"
+	imagePullBackOffReason = "ImagePullBackOff"
+	invalidImageNameReason = "InvalidImageName"
+
 	// defaultKeepAliveInterval is the default interval for client-side
 	// authenticated API probes that reset the OAuth access-token inactivity
 	// timer. Clusters with accessTokenInactivityTimeout (common in regulated
@@ -243,6 +250,9 @@ func (o *MustGatherOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, arg
 	}
 	if len(o.DestDir) == 0 {
 		o.DestDir = o.generateDestDir()
+	}
+	if cmd.Flags().Changed("image") || cmd.Flags().Changed("image-stream") || o.AllImages {
+		o.pluginImagesRequested = true
 	}
 	// TODO: this should be in Validate() method, but added here because of the call to o.completeImages() below
 	if o.AllImages {
@@ -440,22 +450,26 @@ type MustGatherOptions struct {
 	ImageClient      imagev1client.ImageV1Interface
 	RESTClientGetter genericclioptions.RESTClientGetter
 
-	NodeName         string
-	NodeSelector     string
-	HostNetwork      bool
-	DestDir          string
-	SourceDir        string
-	Images           []string
-	AllImages        bool
-	ImageStreams     []string
-	Command          []string
-	Timeout          time.Duration
-	timeoutStr       string
-	RunNamespace     string
-	VolumePercentage uint8
-	Keep             bool
-	Since            time.Duration
-	SinceTime        string
+	NodeName     string
+	NodeSelector string
+	HostNetwork  bool
+	DestDir      string
+	SourceDir    string
+	Images       []string
+	AllImages    bool
+	ImageStreams []string
+	// pluginImagesRequested is true when the user asked for a plugin image
+	// (--image, --image-stream, or --all-images) rather than the default
+	// must-gather image.
+	pluginImagesRequested bool
+	Command               []string
+	Timeout               time.Duration
+	timeoutStr            string
+	RunNamespace          string
+	VolumePercentage      uint8
+	Keep                  bool
+	Since                 time.Duration
+	SinceTime             string
 
 	RsyncRshCmd string
 	clock       clock.PassiveClock
@@ -808,12 +822,7 @@ func (o *MustGatherOptions) Run() error {
 	for i := range errCh {
 		errs = append(errs, i)
 	}
-	if len(errs) == 0 {
-		// If we didn't have an error during collection, then we don't need to do our backup collection.
-		runBackCollection = false
-	} else if len(o.Command) > 0 {
-		// If we had errors, but the user specified a command, he probably just typoed the command.
-		// If the command was specified, don't run the backup collection.
+	if !shouldRunBackupCollection(o.pluginImagesRequested, o.Command, errs) {
 		runBackCollection = false
 	}
 
@@ -1103,8 +1112,8 @@ func (o *MustGatherOptions) waitForGatherContainerRunning(ctx context.Context, p
 			state := pod.Status.ContainerStatuses[0].State
 			if state.Waiting != nil {
 				switch state.Waiting.Reason {
-				case "ErrImagePull", "ImagePullBackOff", "InvalidImageName":
-					return true, fmt.Errorf("unable to pull image: %v: %v", state.Waiting.Reason, state.Waiting.Message)
+				case errImagePullReason, imagePullBackOffReason, invalidImageNameReason:
+					return true, fmt.Errorf("%s: %v: %v", unableToPullImageMsg, state.Waiting.Reason, state.Waiting.Message)
 				}
 			}
 			running := state.Running != nil
@@ -1368,6 +1377,37 @@ func (o *MustGatherOptions) newPod(node, image string, hasMaster bool, affinity 
 	}
 
 	return ret
+}
+
+// shouldRunBackupCollection reports whether inspect fallback should run after
+// gather errors. Skip it when collection succeeded, when the user passed a
+// custom command (likely a typo), or when a user-specified plugin image could
+// not be pulled — fallback inspect output looks like a successful must-gather
+// and is uploaded to support by mistake.
+func shouldRunBackupCollection(pluginImagesRequested bool, command []string, errs []error) bool {
+	if len(errs) == 0 {
+		return false
+	}
+	if len(command) > 0 {
+		return false
+	}
+	if pluginImagesRequested {
+		for _, err := range errs {
+			if isImagePullFailure(err) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func isImagePullFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	// All image-pull failures from waitForGatherContainerRunning are formatted
+	// with unableToPullImageMsg, so a single shared marker is enough.
+	return strings.Contains(err.Error(), unableToPullImageMsg)
 }
 
 // BackupGathering is called if the full must-gather has an error.  This is useful for making sure we get *something*

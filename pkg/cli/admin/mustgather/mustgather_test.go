@@ -699,3 +699,102 @@ func TestNewPod(t *testing.T) {
 		})
 	}
 }
+
+func TestShouldRunBackupCollection(t *testing.T) {
+	pullErr := fmt.Errorf("gather did not start for pod x: %s: %s: not found", unableToPullImageMsg, imagePullBackOffReason)
+	otherErr := fmt.Errorf("copy failed")
+
+	tests := []struct {
+		name                  string
+		pluginImagesRequested bool
+		command               []string
+		errs                  []error
+		wantBackup            bool
+	}{
+		{
+			name:       "no errors skips backup",
+			wantBackup: false,
+		},
+		{
+			name:       "generic gather error still runs backup",
+			errs:       []error{otherErr},
+			wantBackup: true,
+		},
+		{
+			name:       "custom command skips backup",
+			command:    []string{"/usr/bin/gather_network_logs"},
+			errs:       []error{otherErr},
+			wantBackup: false,
+		},
+		{
+			name:                  "plugin image pull failure skips backup",
+			pluginImagesRequested: true,
+			errs:                  []error{pullErr},
+			wantBackup:            false,
+		},
+		{
+			name:                  "plugin image pull among other errors skips backup",
+			pluginImagesRequested: true,
+			errs:                  []error{otherErr, pullErr},
+			wantBackup:            false,
+		},
+		{
+			name:                  "default image pull still runs backup",
+			pluginImagesRequested: false,
+			errs:                  []error{pullErr},
+			wantBackup:            true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := shouldRunBackupCollection(tc.pluginImagesRequested, tc.command, tc.errs)
+			if got != tc.wantBackup {
+				t.Errorf("shouldRunBackupCollection() = %v, want %v", got, tc.wantBackup)
+			}
+		})
+	}
+}
+
+func TestIsImagePullFailure(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "nil",
+			err:  nil,
+			want: false,
+		},
+		{
+			name: "ErrImagePull",
+			err:  fmt.Errorf("%s: %s: rpc error", unableToPullImageMsg, errImagePullReason),
+			want: true,
+		},
+		{
+			name: "ImagePullBackOff",
+			err:  fmt.Errorf("%s: %s: not found", unableToPullImageMsg, imagePullBackOffReason),
+			want: true,
+		},
+		{
+			name: "InvalidImageName",
+			err:  fmt.Errorf("%s: %s: bad ref", unableToPullImageMsg, invalidImageNameReason),
+			want: true,
+		},
+		{
+			name: "generic error",
+			err:  fmt.Errorf("gather never finished"),
+			want: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isImagePullFailure(tc.err)
+			if got != tc.want {
+				t.Errorf("isImagePullFailure() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
