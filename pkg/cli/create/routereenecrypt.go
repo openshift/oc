@@ -2,6 +2,7 @@ package create
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/spf13/cobra"
 
@@ -34,22 +35,26 @@ var (
 		# route name default to the service name and the destination CA certificate
 		# default to the service CA
 		oc create route reencrypt --service=frontend
+
+		# Create a reencrypt route that uses an external certificate from a secret
+		oc create route reencrypt --service=frontend --external-certificate=my-cert-secret --dest-ca-cert cert.cert
 	`)
 )
 
 type CreateReencryptRouteOptions struct {
 	CreateRouteSubcommandOptions *CreateRouteSubcommandOptions
 
-	Hostname       string
-	Port           string
-	InsecurePolicy string
-	Service        string
-	Path           string
-	Cert           string
-	Key            string
-	CACert         string
-	DestCACert     string
-	WildcardPolicy string
+	Hostname            string
+	Port                string
+	InsecurePolicy      string
+	Service             string
+	Path                string
+	Cert                string
+	Key                 string
+	CACert              string
+	DestCACert          string
+	ExternalCertificate string
+	WildcardPolicy      string
 }
 
 // NewCmdCreateReencryptRoute is a macro command to create a reencrypt route.
@@ -64,6 +69,7 @@ func NewCmdCreateReencryptRoute(f kcmdutil.Factory, streams genericiooptions.IOS
 		Example: reencryptRouteExample,
 		Run: func(cmd *cobra.Command, args []string) {
 			kcmdutil.CheckErr(o.Complete(f, cmd, args))
+			kcmdutil.CheckErr(o.Validate())
 			kcmdutil.CheckErr(o.Run())
 		},
 	}
@@ -82,6 +88,7 @@ func NewCmdCreateReencryptRoute(f kcmdutil.Factory, streams genericiooptions.IOS
 	cmd.MarkFlagFilename("ca-cert")
 	cmd.Flags().StringVar(&o.DestCACert, "dest-ca-cert", o.DestCACert, "Path to a CA certificate file, used for securing the connection from the router to the destination. Defaults to the Service CA.")
 	cmd.MarkFlagFilename("dest-ca-cert")
+	cmd.Flags().StringVar(&o.ExternalCertificate, "external-certificate", o.ExternalCertificate, "Name of a kubernetes.io/tls secret in the route's namespace that provides the certificate and key. Mutually exclusive with --cert and --key.")
 	cmd.Flags().StringVar(&o.WildcardPolicy, "wildcard-policy", o.WildcardPolicy, "Sets the WilcardPolicy for the hostname, the default is \"None\". valid values are \"None\" and \"Subdomain\"")
 
 	kcmdutil.AddValidateFlags(cmd)
@@ -93,6 +100,16 @@ func NewCmdCreateReencryptRoute(f kcmdutil.Factory, streams genericiooptions.IOS
 
 func (o *CreateReencryptRouteOptions) Complete(f kcmdutil.Factory, cmd *cobra.Command, args []string) error {
 	return o.CreateRouteSubcommandOptions.Complete(f, cmd, args)
+}
+
+func (o *CreateReencryptRouteOptions) Validate() error {
+	if len(o.Cert) > 0 && len(o.ExternalCertificate) > 0 {
+		return fmt.Errorf("--cert and --external-certificate are mutually exclusive")
+	}
+	if len(o.Key) > 0 && len(o.ExternalCertificate) > 0 {
+		return fmt.Errorf("--key and --external-certificate are mutually exclusive")
+	}
+	return nil
 }
 
 func (o *CreateReencryptRouteOptions) Run() error {
@@ -131,6 +148,9 @@ func (o *CreateReencryptRouteOptions) Run() error {
 		return err
 	}
 	route.Spec.TLS.Key = string(key)
+	if len(o.ExternalCertificate) > 0 {
+		route.Spec.TLS.ExternalCertificate = &routev1.LocalObjectReference{Name: o.ExternalCertificate}
+	}
 	caCert, err := fileutil.LoadData(o.CACert)
 	if err != nil {
 		return err
